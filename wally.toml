@@ -1,0 +1,9 @@
+[package]
+name = "imezx/warp"
+version = "0.1.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+license = "MIT"
+description = "A very-fast & powerful networking library for Roblox."
+
+[dependencies]
