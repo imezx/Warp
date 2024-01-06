@@ -17,10 +17,10 @@ else
 	require(Client.ClientProcess).start()
 end
 
-function Index.Server(Identifier: string): Type.Server
+function Index.Server(Identifier: string, rateLimit: Type.rateLimitArg?): Type.Server
 	Assert(IsServer, `[Warp]: Calling .Server({Identifier}) on client side (expected server side)`)
 	Assert(typeof(Identifier) == "string", "[Warp]: Identifier must be a string type")
-	return require(Server.Index)(Identifier) :: Type.Server
+	return require(Server.Index)(Identifier, rateLimit) :: Type.Server
 end
 function Index.Client(Identifier: string): Type.Client
 	Assert(not IsServer, `[Warp]: Calling .Client({Identifier}) on server side (expected client side)`)

@@ -108,7 +108,7 @@ end
 
 function ServerProcess.add(Identifier: string, originId: string, ratelimit: Type.rateLimitArg)
 	if not serverQueue[Identifier] then
-		RateLimit.create(originId, ratelimit.maxEntrance, ratelimit.interval)
+		RateLimit.create(originId, ratelimit.maxEntrance or 200, ratelimit.interval or 2)
 		serverQueue[Identifier] = {}
 		unreliableServerQueue[Identifier] = {}
 		serverCallback[Identifier] = {}
@@ -119,6 +119,10 @@ function ServerProcess.add(Identifier: string, originId: string, ratelimit: Type
 		queueInRequest[2][Identifier] = {}
 		queueOutRequest[1][Identifier] = {}
 		queueOutRequest[2][Identifier] = {}
+		
+		for _, player: Player in ipairs(Players:GetPlayers()) do
+			task.spawn(initializeEachPlayer, player)
+		end
 	end
 end
 
