@@ -5,7 +5,6 @@ Client.__index = Client
 local Players = game:GetService("Players")
 local Util = script.Parent.Parent.Util
 
-local Type = require(script.Parent.Parent.Type)
 local ClientProcess = require(script.Parent.ClientProcess)
 local Assert = require(Util.Assert)
 local Key = require(Util.Key)

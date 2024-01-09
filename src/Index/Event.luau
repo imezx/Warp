@@ -4,20 +4,20 @@ local Type = require(script.Parent.Type)
 
 if RunService:IsServer() then
 	if not script:FindFirstChild("Event") then
-		Instance.new("RemoteEvent", script).Name = "Event"
+		Instance.new("RemoteEvent", script).Name = "Reliable"
 	end
 	if not script:FindFirstChild("Event2") then
-		Instance.new("RemoteEvent", script).Name = "Event2"
+		Instance.new("UnreliableRemoteEvent", script).Name = "Unreliable"
 	end
 	if not script:FindFirstChild("Request") then
 		Instance.new("RemoteEvent", script).Name = "Request"
 	end
-elseif not script:FindFirstChild("Event") or not script:FindFirstChild("Event2") or not script:FindFirstChild("Request") then
-	repeat task.wait() until script:FindFirstChild("Event") and script:FindFirstChild("Event2") and script:FindFirstChild("Request")
+elseif not script:FindFirstChild("Reliable") or not script:FindFirstChild("Unreliable") or not script:FindFirstChild("Request") then
+	repeat task.wait() until script:FindFirstChild("Reliable") and script:FindFirstChild("Unreliable") and script:FindFirstChild("Request")
 end
 
 return {
-	Reliable = script.Event,
-	Unreliable = script.Event2,
+	Reliable = script.Reliable,
+	Unreliable = script.Unreliable,
 	Request = script.Request
 } :: Type.Event

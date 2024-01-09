@@ -1,7 +1,7 @@
 --!strict
 export type rateLimitArg = {
-	maxEntrance: number,
-	interval: number,
+	maxEntrance: number?,
+	interval: number?,
 }
 
 export type Client = {
