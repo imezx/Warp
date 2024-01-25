@@ -154,6 +154,7 @@ function ServerProcess.start()
 		for Identifier: string, players in serverQueue do
 			for player: Player, data in players do
 				if #data > 0 then
+					if not queueOut[player] then continue end
 					queueOut[player][Identifier] = table.clone(data)
 					table.clear(data)
 				end
