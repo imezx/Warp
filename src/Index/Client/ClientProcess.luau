@@ -20,9 +20,6 @@ local queueIn: {
 	[string]: {any}
 } = {}
 local queueInRequest: {
-	[string]: {any}
-} = {}
-local queueInRequest: {
 	[number]: {
 		[string]: {
 			any
