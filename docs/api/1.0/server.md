@@ -2,7 +2,7 @@
 
 For Server-sided
 
-## `.Server`
+## `.Server` <Badge type="warning" text="yield" />
 
 Create new Warp event.
 
@@ -18,10 +18,39 @@ Create new Warp event.
 ```
 
 ```lua [Example]
-local Remote = Warp.new("Remote")
+local Remote = Warp.Server("Remote")
 ```
 :::
 
+## `.fromServerArray` <Badge type="warning" text="yield" />
+
+Create new Warp events with array.
+
+::: code-group
+```lua [Variable]
+(
+	{ any }
+)
+```
+
+```lua [Example]
+local Events = Warp.fromServerArray({
+	["Remote1"] = {
+		maxEntrance: 50,
+		interval: 1,
+	}, -- with rateLimit configuration
+	"Remote2", -- without rateLimit configuration
+	["Remote3"] = {
+		maxEntrance: 10,
+	}, -- with rateLimit configuration
+})
+
+-- Usage
+Events.Remote1:Connect(function(player, ...) end)
+Events.Remote2:Connect(function(player, ...) end)
+Events.Remote3:Connect(function(player, ...) end)
+```
+:::
 ## `:Connect`
 
 Connect event to receive incoming from client way.
@@ -121,7 +150,7 @@ Remote:Fires(true, "Hello World!")
 ```
 :::
 
-## `:Invoke`
+## `:Invoke` <Badge type="warning" text="yield" />
 
 Semiliar to `:InvokeClient`, its for Invoke to a client.
 
@@ -143,7 +172,7 @@ local Request = Remote:Invoke(2, player, "Hello World!")
 This function is yielded, once it timeout it will return nil.
 :::
 
-## `:Wait`
+## `:Wait` <Badge type="warning" text="yield" />
 
 Wait the event being triggered.
 

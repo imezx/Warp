@@ -2,7 +2,7 @@
 
 For Client-sided
 
-## `.Client`
+## `.Client` <Badge type="warning" text="yield" />
 
 Create new Warp event.
 
@@ -14,7 +14,32 @@ Create new Warp event.
 ```
 
 ```lua [Example]
-local Remote = Warp.new("Remote")
+local Remote = Warp.Client("Remote")
+```
+:::
+
+## `.fromClientArray` <Badge type="warning" text="yield" />
+
+Create new Warp events with array.
+
+::: code-group
+```lua [Variable]
+(
+	{ any }
+)
+```
+
+```lua [Example]
+local Events = Warp.fromClientArray({
+	"Remote1",
+	"Remote2",
+	"Remote3",
+})
+
+-- Usage
+Events.Remote1:Connect(function(...) end)
+Events.Remote2:Connect(function(...) end)
+Events.Remote3:Connect(function(...) end)
 ```
 :::
 
@@ -101,7 +126,7 @@ Remote:Fire(true, "Hello World!")
 This function have rate limiting it self and configured from server.
 :::
 
-## `:Invoke`
+## `:Invoke` <Badge type="warning" text="yield" />
 
 Semiliar to `:InvokeServer`, its for Invoke to a server.
 
@@ -122,7 +147,7 @@ local Request = Remote:Invoke(2, "Hello World!")
 This function is yielded, once it timeout it will return nil.
 :::
 
-## `:Wait`
+## `:Wait` <Badge type="warning" text="yield" />
 
 Wait the event being triggered.
 

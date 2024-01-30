@@ -2,11 +2,11 @@
 
 Ratelimit is one of most useful feature.
 
-( Configured on Server and For Client )
+( Configured on Server only and For Client )
 
 ## `Setup`
 
-When creating a event on Server, you can add second argument as table `rateLimit` to limit the number of times the event can be called and the interval for reset the counter.
+When creating a event on Server, you can add second argument (optional) as table `rateLimit` to limit the number of times the event can be called and the interval for reset the counter on client-side.
 
 ::: code-group
 ```lua [Server]
@@ -22,7 +22,7 @@ local Remote = Warp.Server("Remote1", {
 
 ```lua [Client]
 -- Client
-local Remote = Warp.Client("Remote1")
+local Remote = Warp.Client("Remote1") -- Yields, retreive rateLimit configuration.
 -- The Event will automatic it self for retreiving the rate limit configuration from the server.
 ```
 :::
