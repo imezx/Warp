@@ -28,4 +28,28 @@ function Index.Client(Identifier: string): Type.Client
 	return require(Client.Index)(Identifier) :: Type.Client
 end
 
+function Index.fromServerArray(arrays: { any }): Type.fromServerArray
+	Assert(IsServer, `[Warp]: Calling .fromServerArray({arrays}) on client side (expected server side)`)
+	Assert(typeof(arrays) == "table", "[Warp]: Array must be a table type")
+	local copy = {}
+	for param1: any, param2: any in arrays do
+		if typeof(param2) == "table" then
+			copy[param1] = Index.Server(param1, param2)
+		else
+			copy[param2] = Index.Server(param2)
+		end
+	end
+	return table.freeze(copy) :: typeof(copy)
+end
+
+function Index.fromClientArray(arrays: { any }): Type.fromClientArray
+	Assert(not IsServer, `[Warp]: Calling .fromClientArray({arrays}) on server side (expected client side)`)
+	Assert(typeof(arrays) == "table", "[Warp]: Array must be a table type")
+	local copy = {}
+	for idx: number, identifier: string in arrays do
+		copy[identifier] = Index.Client(identifier)
+	end
+	return table.freeze(copy) :: typeof(copy)
+end
+
 return table.freeze(Index) :: typeof(Index)

@@ -5,10 +5,10 @@ export type rateLimitArg = {
 }
 
 export type Client = {
-	Fire: (self: Client, reliable: boolean, any) -> (),
-	Invoke: (self: Client, timeout: number, any) -> any,
-	Connect: (self: Client, callback: (args: any) -> ()) -> string,
-	Once: (self: Client, callback: (player: Player, args: any) -> ()) -> string,
+	Fire: (self: Client, reliable: boolean, ...any) -> (),
+	Invoke: (self: Client, timeout: number, ...any) -> any,
+	Connect: (self: Client, callback: (...any) -> ()) -> string,
+	Once: (self: Client, callback: (player: Player, ...any) -> ()) -> string,
 	Disconnect: (self: Client, key: string) -> (),
 	DisconnectAll: (self: Client) -> (),
 	Destroy: (self: Client) -> (),
@@ -16,11 +16,11 @@ export type Client = {
 }
 
 export type Server = {
-	Fire: (self: Server, reliable: boolean, player: Player, any) -> (),
-	Fires: (self: Server, reliable: boolean, any) -> (),
-	Invoke: (self: Server, timeout: number, player: Player, any) -> any,
-	Connect: (self: Server, callback: (player: Player, args: any) -> ()) -> string,
-	Once: (self: Server, callback: (player: Player, args: any) -> ()) -> string,
+	Fire: (self: Server, reliable: boolean, player: Player, ...any) -> (),
+	Fires: (self: Server, reliable: boolean, ...any) -> (),
+	Invoke: (self: Server, timeout: number, player: Player, ...any) -> any,
+	Connect: (self: Server, callback: (player: Player, ...any) -> ()) -> string,
+	Once: (self: Server, callback: (player: Player, ...any) -> ()) -> string,
 	Disconnect: (self: Server, key: string) -> (),
 	DisconnectAll: (self: Server) -> (),
 	Destroy: (self: Server) -> (),
@@ -31,10 +31,6 @@ export type Event = {
 	Reliable: RemoteEvent,
 	Unreliable: UnreliableRemoteEvent,
 	Request: RemoteEvent,
-}
-
-export type Ratelimit = {
-	create: (entrance: number, interval: number) -> (),
 }
 
 export type QueueMap = {
@@ -49,6 +45,14 @@ export type CallbackMap = {
 
 export type StoredRatelimit = {
 	[string]: any
+}
+
+export type fromServerArray = {
+	[string]: Server
+}
+
+export type fromClientArray = {
+	[string]: Client
 }
 
 return nil

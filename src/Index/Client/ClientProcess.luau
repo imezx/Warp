@@ -1,3 +1,4 @@
+--!native
 --!strict
 local ClientProcess = {}
 
@@ -16,6 +17,9 @@ local unreliableClientQueue: Type.QueueMap = {}
 local clientCallback: Type.CallbackMap = {}
 local clientRequestQueue: Type.QueueMap = {}
 local queueIn: {
+	[string]: {any}
+} = {}
+local queueInRequest: {
 	[string]: {any}
 } = {}
 local queueInRequest: {

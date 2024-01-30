@@ -3,10 +3,10 @@ local RunService = game:GetService("RunService")
 local Type = require(script.Parent.Type)
 
 if RunService:IsServer() then
-	if not script:FindFirstChild("Event") then
+	if not script:FindFirstChild("Reliable") then
 		Instance.new("RemoteEvent", script).Name = "Reliable"
 	end
-	if not script:FindFirstChild("Event2") then
+	if not script:FindFirstChild("Unreliable") then
 		Instance.new("UnreliableRemoteEvent", script).Name = "Unreliable"
 	end
 	if not script:FindFirstChild("Request") then
