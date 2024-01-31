@@ -16,6 +16,7 @@ local clientQueue: Type.QueueMap = {}
 local unreliableClientQueue: Type.QueueMap = {}
 local clientCallback: Type.CallbackMap = {}
 local clientRequestQueue: Type.QueueMap = {}
+
 local queueIn: {
 	[string]: {any}
 } = {}
@@ -31,6 +32,11 @@ local queueOutRequest: {
 		[string]: {
 			any
 		}
+	}
+} = {}
+local incoming_cache: {
+	[string]: {
+		any
 	}
 } = {}
 
@@ -112,7 +118,14 @@ function ClientProcess.start()
 					table.remove(requestData, #requestData)
 				end
 			end
-			if clientCallback[Identifier] ~= nil then
+			if incoming_cache[Identifier] then
+				for _, packet in incoming_cache[Identifier] do
+					if not queueIn[Identifier] then continue end
+					table.insert(queueIn[Identifier], table.clone(packet))
+					table.clear(incoming_cache[Identifier])
+				end
+			end
+			if clientCallback[Identifier] then
 				if #queueIn[Identifier] > 0 then
 					for _, packedDatas: any in queueIn[Identifier] do
 						if #packedDatas == 0 then continue end
@@ -170,6 +183,13 @@ function ClientProcess.start()
 		if not Identifier or not data then return end
 		if not queueIn[Identifier] then
 			queueIn[Identifier] = {}
+		end
+		if not clientCallback[Identifier] then
+			if not incoming_cache[Identifier] then
+				incoming_cache[Identifier] = {}
+			end
+			table.insert(incoming_cache[Identifier], data)
+			return
 		end
 		table.insert(queueIn[Identifier], data)
 	end

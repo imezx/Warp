@@ -1,4 +1,4 @@
-# Rate Limit
+# Rate Limit <Badge type="tip" text="feature" />
 
 Ratelimit is one of most useful feature.
 

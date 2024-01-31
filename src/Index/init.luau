@@ -10,6 +10,7 @@ local Client = script.Client
 
 local Type = require(script.Type)
 local Assert = require(Util.Assert)
+local Signal = require(script.Signal)
 
 if IsServer then
 	require(Server.ServerProcess).start()
@@ -19,12 +20,12 @@ end
 
 function Index.Server(Identifier: string, rateLimit: Type.rateLimitArg?): Type.Server
 	Assert(IsServer, `[Warp]: Calling .Server({Identifier}) on client side (expected server side)`)
-	Assert(typeof(Identifier) == "string", "[Warp]: Identifier must be a string type")
+	Assert(typeof(Identifier) == "string", `[Warp]: Identifier must be a string type, got {typeof(Identifier)}`)
 	return require(Server.Index)(Identifier, rateLimit) :: Type.Server
 end
 function Index.Client(Identifier: string): Type.Client
 	Assert(not IsServer, `[Warp]: Calling .Client({Identifier}) on server side (expected client side)`)
-	Assert(typeof(Identifier) == "string", "[Warp]: Identifier must be a string type")
+	Assert(typeof(Identifier) == "string", `[Warp]: Identifier must be a string type, got {typeof(Identifier)}`)
 	return require(Client.Index)(Identifier) :: Type.Client
 end
 
@@ -44,12 +45,25 @@ end
 
 function Index.fromClientArray(arrays: { any }): Type.fromClientArray
 	Assert(not IsServer, `[Warp]: Calling .fromClientArray({arrays}) on server side (expected client side)`)
-	Assert(typeof(arrays) == "table", "[Warp]: Array must be a table type")
+	Assert(typeof(arrays) == "table", `[Warp]: Array must be a table type, got {typeof(arrays)}`)
 	local copy = {}
-	for idx: number, identifier: string in arrays do
+	for _, identifier: string in arrays do
 		copy[identifier] = Index.Client(identifier)
 	end
 	return table.freeze(copy) :: typeof(copy)
+end
+
+function Index.Signal(Identifier: string)
+	return Signal(Identifier)
+end
+
+function Index.fromSignalArray(arrays: { any })
+	Assert(typeof(arrays) == "table", `[Warp]: Array must be a table type, got {typeof(arrays)}`)
+	local copy = {}
+	for _, identifier: string in arrays do
+		copy[identifier] = Index.Signal(identifier)
+	end
+	return copy :: typeof(copy)
 end
 
 return table.freeze(Index) :: typeof(Index)

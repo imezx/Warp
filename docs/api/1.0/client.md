@@ -1,4 +1,4 @@
-# Client
+# Client <Badge type="tip" text="event" />
 
 For Client-sided
 

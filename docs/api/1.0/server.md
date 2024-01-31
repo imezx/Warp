@@ -1,4 +1,4 @@
-# Server
+# Server <Badge type="tip" text="event" />
 
 For Server-sided
 
@@ -11,8 +11,8 @@ Create new Warp event.
 (
 	Identifier: string,
 	rateLimit: {
-		maxEntrance: number,
-		interval: number,
+		maxEntrance: number?,
+		interval: number?,
 	}?
 )
 ```

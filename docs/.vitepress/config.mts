@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitepress'
+import { defineConfig } from 'vitepress';
 
 function nav() {
   return [
@@ -22,9 +22,25 @@ function side() {
         text: 'API Reference',
         items: [
           { text: 'Warp', link: '/api/1.0/warp' },
-          { text: 'Server', link: '/api/1.0/server' },
-          { text: 'Client', link: '/api/1.0/client' },
-          { text: 'RateLimit', link: '/api/1.0/ratelimit' },
+          {
+            text: 'Event',
+            items: [
+              { text: 'Server', link: '/api/1.0/server' },
+              { text: 'Client', link: '/api/1.0/client' },
+            ]
+          },
+          {
+            text: 'Feature',
+            items: [
+              { text: 'Rate Limit', link: '/api/1.0/ratelimit' },
+            ]
+          },
+          {
+            text: 'Utilities',
+            items: [
+              { text: 'Signal', link: '/api/1.0/signal' },
+            ]
+          },
         ]
       }
     ],
@@ -59,6 +75,14 @@ export default defineConfig({
     socialLinks: [
       { icon: 'github', link: 'https://github.com/imezx/Warp' },
       { icon: 'discord', link: 'https://discord.gg/qnSfEZ6bZK' },
-    ]
-  }
+    ],
+    search: {
+      provider: 'local',
+      // options: {
+      //   appId: 'RNOWUVQEKL',
+      //   apiKey: '97e23a3258a6df1080abaf10bd208302',
+      //   indexName: 'warp',
+      // }
+    },
+  },
 })

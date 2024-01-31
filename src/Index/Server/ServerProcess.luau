@@ -16,6 +16,7 @@ local serverQueue: Type.QueueMap = {}
 local unreliableServerQueue: Type.QueueMap = {}
 local serverCallback: Type.CallbackMap = {}
 local serverRequestQueue: Type.QueueMap = {}
+
 local queueOut: {
 	[Player]: {
 		[string]: {any},
@@ -165,7 +166,7 @@ function ServerProcess.start()
 						table.remove(requestData, #requestData)
 					end
 				end
-				if serverCallback[Identifier] ~= nil then
+				if serverCallback[Identifier] then
 					if #queueIn[Identifier][player] > 0 then
 						for _, packedDatas: any in queueIn[Identifier][player] do
 							if #packedDatas == 0 then continue end
