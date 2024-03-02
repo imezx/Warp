@@ -1,4 +1,5 @@
 --!strict
+--!native
 local Server = {}
 Server.__index = Server
 
@@ -25,6 +26,13 @@ end
 
 function Server:Fires(reliable: boolean, ...: any)
 	for _, player: Player in ipairs(Players:GetPlayers()) do
+		ServerProcess.insertQueue(self.id, reliable, player, ...)
+	end
+end
+
+function Server:FireExcept(reliable: boolean, except: { Player }, ...: any)
+	for _, player: Player in ipairs(Players:GetPlayers()) do
+		if table.find(except, player) then continue end
 		ServerProcess.insertQueue(self.id, reliable, player, ...)
 	end
 end

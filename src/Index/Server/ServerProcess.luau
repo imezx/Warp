@@ -55,7 +55,8 @@ local function initializeEachPlayer(player: Player)
 	if not queueOut[player] then
 		queueOut[player] = {}
 	end
-	for Identifier: string,_ in serverQueue do
+	for Identifier: string in serverQueue do
+		if not player then break end
 		if not queueOut[player][Identifier] then
 			queueOut[player][Identifier] = {}
 		end

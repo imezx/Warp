@@ -150,6 +150,24 @@ Remote:Fires(true, "Hello World!")
 ```
 :::
 
+## `:FireExcept` <Badge type="tip" text="Server Only" />
+
+Fire the event to all clients but except a players.
+
+::: code-group
+```lua [Variable]
+(
+	reliable: boolean,
+	except: { Player },
+	...: any
+)
+```
+
+```lua [Example]
+Remote:FireExcept(true, { Players.Eternity_Devs, Players.Player2 }, "Hello World!") -- this will sent to all players except { Players.Eternity_Devs, Players.Player2 }.
+```
+:::
+
 ## `:Invoke` <Badge type="warning" text="yield" />
 
 Semiliar to `:InvokeClient`, its for Invoke to a client.
