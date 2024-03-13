@@ -1,5 +1,6 @@
 --!native
 --!strict
+--!optimize 2
 local ClientProcess = {}
 
 local RunService = game:GetService("RunService")
@@ -10,6 +11,7 @@ local Event = require(script.Parent.Parent.Event)
 local Spawn = require(Util.Spawn)
 local Key = require(Util.Key)
 local RateLimit = require(Util.RateLimit)
+local Buffer = require(Util.Buffer)
 
 local clientRatelimit: Type.StoredRatelimit = {}
 local clientQueue: Type.QueueMap = {}
@@ -99,7 +101,7 @@ function ClientProcess.start()
 		for Identifier: string, data: any in unreliableClientQueue do
 			if #data > 0 then
 				if clientRatelimit[Identifier](#data) then
-					UnreliableEvent:FireServer(Identifier, data)
+					UnreliableEvent:FireServer(Buffer.revert(Identifier), data)
 				end
 				table.clear(data)
 			end
@@ -107,7 +109,7 @@ function ClientProcess.start()
 		for Identifier: string, data: any in clientQueue do
 			if #data > 0 then
 				if clientRatelimit[Identifier](#data) then
-					ReliableEvent:FireServer(Identifier, data)
+					ReliableEvent:FireServer(Buffer.revert(Identifier), data)
 				end
 				table.clear(data)
 			end
@@ -170,17 +172,18 @@ function ClientProcess.start()
 		end
 		for Identifier: string, requestsData in queueOutRequest[1] do
 			if #requestsData == 0 then continue end
-			RequestEvent:FireServer(Identifier, "\1", requestsData)
+			RequestEvent:FireServer(Buffer.revert(Identifier), "\1", requestsData)
 			table.clear(queueOutRequest[1][Identifier])
 		end
 		for Identifier: string, requestsData in queueOutRequest[2] do
 			if #requestsData == 0 then continue end
-			RequestEvent:FireServer(Identifier, "\0", requestsData)
+			RequestEvent:FireServer(Buffer.revert(Identifier), "\0", requestsData)
 			table.clear(queueOutRequest[2][Identifier])
 		end
 	end)
-	local function onClientNetworkReceive(Identifier: string, data: any)
+	local function onClientNetworkReceive(Identifier: any, data: any)
 		if not Identifier or not data then return end
+		Identifier = Buffer.convert(Identifier)
 		if not queueIn[Identifier] then
 			queueIn[Identifier] = {}
 		end
@@ -195,8 +198,9 @@ function ClientProcess.start()
 	end
 	ReliableEvent.OnClientEvent:Connect(onClientNetworkReceive)
 	UnreliableEvent.OnClientEvent:Connect(onClientNetworkReceive)
-	RequestEvent.OnClientEvent:Connect(function(Identifier: string, action: string, returnDatas)
+	RequestEvent.OnClientEvent:Connect(function(Identifier: any, action: string, returnDatas)
 		if not Identifier or not returnDatas then return end
+		Identifier = Buffer.convert(Identifier)
 		if action == "\1" then
 			table.insert(queueInRequest[1][Identifier], returnDatas)
 		else

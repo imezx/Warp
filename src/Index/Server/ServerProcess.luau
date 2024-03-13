@@ -1,5 +1,6 @@
 --!native
 --!strict
+--!optimize 2
 local ServerProcess = {}
 
 local RunService = game:GetService("RunService")
@@ -11,6 +12,7 @@ local Event = require(script.Parent.Parent.Event)
 local Spawn = require(Util.Spawn)
 local Key = require(Util.Key)
 local RateLimit = require(Util.RateLimit)
+local Buffer = require(Util.Buffer)
 
 local serverQueue: Type.QueueMap = {}
 local unreliableServerQueue: Type.QueueMap = {}
@@ -130,6 +132,7 @@ function ServerProcess.add(Identifier: string, originId: string, ratelimit: Type
 end
 
 function ServerProcess.addCallback(Identifier: string, key: string, callback)
+	print(serverCallback, Identifier)
 	serverCallback[Identifier][key] = callback
 end
 
@@ -142,7 +145,7 @@ function ServerProcess.start()
 		for Identifier: string, players in unreliableServerQueue do
 			for player: Player, data: any in players do
 				if #data == 0 then continue end
-				UnreliableEvent:FireClient(player, Identifier, data)
+				UnreliableEvent:FireClient(player, Buffer.revert(Identifier), data)
 				table.clear(data)
 			end
 		end
@@ -150,7 +153,7 @@ function ServerProcess.start()
 			if not queueOut[player] then continue end
 			for Identifier: string, data: any in queueOut[player] do
 				if #data == 0 then continue end
-				ReliableEvent:FireClient(player, Identifier, data)
+				ReliableEvent:FireClient(player, Buffer.revert(Identifier), data)
 				table.clear(data)
 			end
 		end
@@ -210,20 +213,21 @@ function ServerProcess.start()
 					end
 					for player: Player, requestsData: any in queueOutRequest[1][Identifier] do
 						if #requestsData == 0 then continue end
-						RequestEvent:FireClient(player, Identifier, "\1", requestsData)
+						RequestEvent:FireClient(player, Buffer.revert(Identifier), "\1", requestsData)
 						table.clear(requestsData)
 					end
 					for player: Player, toReturnDatas: any in queueOutRequest[2][Identifier] do
 						if #toReturnDatas == 0 then continue end
-						RequestEvent:FireClient(player, Identifier, "\0", toReturnDatas)
+						RequestEvent:FireClient(player, Buffer.revert(Identifier), "\0", toReturnDatas)
 						table.clear(toReturnDatas)
 					end
 				end
 			end
 		end
 	end)
-	local function onServerNetworkReceive(player: Player, Identifier: string, data: any)
+	local function onServerNetworkReceive(player: Player, Identifier: any, data: any)
 		if not Identifier or not data then return end
+		Identifier = Buffer.convert(Identifier)
 		if not serverQueue[Identifier] then
 			serverQueue[Identifier] = {}
 		end
@@ -237,8 +241,9 @@ function ServerProcess.start()
 	end
 	ReliableEvent.OnServerEvent:Connect(onServerNetworkReceive)
 	UnreliableEvent.OnServerEvent:Connect(onServerNetworkReceive)
-	RequestEvent.OnServerEvent:Connect(function(player: Player, Identifier: string, action: string, data: any)
+	RequestEvent.OnServerEvent:Connect(function(player: Player, Identifier: any, action: string, data: any)
 		if not Identifier or not data then return end
+		Identifier = Buffer.convert(Identifier)
 		if not queueInRequest[1][Identifier][player] then
 			queueInRequest[1][Identifier][player] = {}
 			queueInRequest[2][Identifier][player] = {}
