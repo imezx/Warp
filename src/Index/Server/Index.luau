@@ -1,5 +1,6 @@
 --!strict
 --!native
+--!optimize 2
 local Server = {}
 Server.__index = Server
 
@@ -11,12 +12,16 @@ local ServerProcess = require(script.Parent.ServerProcess)
 local Assert = require(Util.Assert)
 local Key = require(Util.Key)
 local Serdes = require(Util.Serdes)
+local Buffer = require(Util.Buffer)
 
 function Server.new(Identifier: string, rateLimit: Type.rateLimitArg?)
 	local self = setmetatable({}, Server)
-	self.id = Serdes(Identifier)
+	self._buffer = Buffer.new()
+	self._buffer:writeu8(Serdes(Identifier))
+	self.id = Buffer.convert(self._buffer:build())
 	self.fn = {}
 	ServerProcess.add(self.id, Identifier, rateLimit or { maxEntrance = 200, interval = 2 })
+	self._buffer:remove()
 	return self
 end
 

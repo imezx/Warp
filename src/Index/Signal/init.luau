@@ -1,5 +1,6 @@
 --!strict
 --!native
+--!optimize 2
 local Signal = {}
 Signal.__index = Signal
 

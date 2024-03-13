@@ -11,7 +11,8 @@ return function(Identifier: string): string
 	if RunService:IsServer() then
 		if not Event:GetAttribute(Identifier) then
 			SerInt += 1
-			Event:SetAttribute(Identifier, string.pack("I1", SerInt)) -- I1 -> 255 max, I2 -> ~ 6.5e4 max. (SerInt)
+			Event:SetAttribute(Identifier, SerInt)
+			--Event:SetAttribute(Identifier, string.pack("I1", SerInt)) -- I1 -> 255 max, I2 -> ~ 6.5e4 max. (SerInt)
 		end
 	else
 		while not Event:GetAttribute(Identifier) do

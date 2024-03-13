@@ -1,5 +1,6 @@
 --!strict
 --!native
+--!optimize 2
 local Dedicated = {}
 Dedicated.__index = Dedicated
 

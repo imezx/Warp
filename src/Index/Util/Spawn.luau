@@ -1,5 +1,6 @@
 --!native
 --!strict
+--!optimize 2
 local thread: thread? = nil
 
 local function passer(fn, ...): ()
@@ -20,7 +21,7 @@ if not thread then
 	coroutine.resume(thread :: any, thread)
 end
 
-return function(fn: (...any) -> (), ...: any): ()
+return function(fn: (...any) -> (...any?), ...: any): ()
 	if not thread then
 		thread = coroutine.create(yield)
 		coroutine.resume(thread :: any, thread)
