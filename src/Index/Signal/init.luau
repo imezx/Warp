@@ -73,7 +73,7 @@ end
 
 function Signal:InvokeTo(signal: string, key: string, ...: any): ()
 	if not Signals[signal] then return end
-	return Signal.Invoke(Signals[signal], ...)
+	return Signal.Invoke(Signals[signal], key, ...)
 end
 
 function Signal:Destroy(): ()

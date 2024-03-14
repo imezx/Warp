@@ -1,5 +1,6 @@
 --!strict
 --!native
+--!optimize 2
 local Client = {}
 Client.__index = Client
 
@@ -10,12 +11,17 @@ local ClientProcess = require(script.Parent.ClientProcess)
 local Assert = require(Util.Assert)
 local Key = require(Util.Key)
 local Serdes = require(Util.Serdes)
+local Buffer = require(Util.Buffer)
 
 function Client.new(Identifier: string)
 	local self = setmetatable({}, Client)
-	self.id = Serdes(Identifier)
+	self._buffer = Buffer.new()
+	self._buffer:writeu8(Serdes(Identifier))
+	self.id = Buffer.convert(self._buffer:build())
 	self.fn = {}
+	self.IsConnected = false
 	ClientProcess.add(self.id, Identifier)
+	self._buffer:remove()
 	return self
 end
 
@@ -30,6 +36,7 @@ end
 function Client:Connect(callback: (args: any) -> ()): string
 	local key = tostring(Key())
 	table.insert(self.fn, key)
+	self.IsConnected = #self.fn > 0
 	ClientProcess.addCallback(self.id, key, callback)
 	return key
 end
@@ -37,6 +44,7 @@ end
 function Client:Once(callback: (args: any) -> ()): string
 	local key = tostring(Key())
 	table.insert(self.fn, key)
+	self.IsConnected = #self.fn > 0
 	ClientProcess.addCallback(self.id, key, function(...)
 		self:Disconnect(key)
 		task.spawn(callback, ...)
@@ -53,15 +61,17 @@ function Client:Wait()
 end
 
 function Client:DisconnectAll()
-	for idx, key: string in self.fn do
-		ClientProcess.removeCallback(self.id, key)
-		table.remove(self.fn, idx)
+	for _, key: string in self.fn do
+		self:Disconnect(key)
 	end
 end
 
-function Client:Disconnect(key: string)
+function Client:Disconnect(key: string): boolean
 	Assert(typeof(key) == "string", "Key must be a string type.")
 	ClientProcess.removeCallback(self.id, key)
+	table.remove(self.fn, table.find(self.fn, key))
+	self.IsConnected = #self.fn > 0
+	return table.find(self.fn, key) == nil
 end
 
 function Client:Destroy()

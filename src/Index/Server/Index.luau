@@ -20,6 +20,7 @@ function Server.new(Identifier: string, rateLimit: Type.rateLimitArg?)
 	self._buffer:writeu8(Serdes(Identifier))
 	self.id = Buffer.convert(self._buffer:build())
 	self.fn = {}
+	self.IsConnected = false
 	ServerProcess.add(self.id, Identifier, rateLimit or { maxEntrance = 200, interval = 2 })
 	self._buffer:remove()
 	return self
@@ -50,12 +51,14 @@ function Server:Connect(callback: (plyer: Player, args: any) -> ()): string
 	local key = tostring(Key())
 	table.insert(self.fn, key)
 	ServerProcess.addCallback(self.id, key, callback)
+	self.IsConnected = #self.fn > 0
 	return key
 end
 
 function Server:Once(callback: (plyer: Player, args: any) -> ()): string
 	local key = tostring(Key())
 	table.insert(self.fn, key)
+	self.IsConnected = #self.fn > 0
 	ServerProcess.addCallback(self.id, key, function(...)
 		self:Disconnect(key)
 		task.spawn(callback, ...)
@@ -72,15 +75,17 @@ function Server:Wait()
 end
 
 function Server:DisconnectAll()
-	for idx, key: string in self.fn do
-		ServerProcess.removeCallback(self.id, key)
-		table.remove(self.fn, idx)
+	for _, key: string in self.fn do
+		self:Disconnect(key)
 	end
 end
 
-function Server:Disconnect(key: string)
+function Server:Disconnect(key: string): boolean
 	Assert(typeof(key) == "string", "Key must be a string type.")
 	ServerProcess.removeCallback(self.id, key)
+	table.remove(self.fn, table.find(self.fn, key))
+	self.IsConnected = #self.fn > 0
+	return table.find(self.fn, key) == nil
 end
 
 function Server:Destroy()

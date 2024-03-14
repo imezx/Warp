@@ -132,7 +132,6 @@ function ServerProcess.add(Identifier: string, originId: string, ratelimit: Type
 end
 
 function ServerProcess.addCallback(Identifier: string, key: string, callback)
-	print(serverCallback, Identifier)
 	serverCallback[Identifier][key] = callback
 end
 

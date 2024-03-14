@@ -1,4 +1,5 @@
 --!strict
+--!optimize 2
 local Index = {}
 
 local RunService = game:GetService("RunService")
