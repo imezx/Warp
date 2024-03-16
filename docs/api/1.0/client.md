@@ -87,7 +87,7 @@ Disconnect the event connection.
 ```lua [Variable]
 (
 	key: string
-)
+): boolean
 ```
 
 ```lua [Example]
@@ -128,7 +128,7 @@ This function have rate limiting it self and configured from server.
 
 ## `:Invoke` <Badge type="warning" text="yield" />
 
-Semiliar to `:InvokeServer`, its for Invoke to a server.
+Semiliar to `:InvokeServer`,  but it have timeout system that not exists on `RemoteFunction.InvokeServer`.
 
 ::: code-group
 ```lua [Variable]
@@ -139,7 +139,7 @@ Semiliar to `:InvokeServer`, its for Invoke to a server.
 ```
 
 ```lua [Example]
-local Request = Remote:Invoke(2, "Hello World!")
+local Request = Remote:Invoke(2, "Hello World!") -- this yield until it response
 ```
 :::
 
@@ -152,7 +152,7 @@ This function is yielded, once it timeout it will return nil.
 Wait the event being triggered.
 
 ```lua
-Remote:Wait()
+Remote:Wait() -- :Wait return number value
 ```
 
 ::: warning
@@ -161,7 +161,7 @@ This function is yielded, Invoke might also ping this one and also causing error
 
 ## `:Destroy`
 
-Disconnect all connection of event and remove the event from Warp
+Disconnect all connection of event and remove the event from Warp list
 
 ```lua
 Remote:Destroy()

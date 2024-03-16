@@ -6,12 +6,21 @@ DedicatedBuffer.__index = DedicatedBuffer
 
 local create = buffer.create
 local copy = buffer.copy
+local writei8 = buffer.writei8
+local writei16 = buffer.writei16
+local writei32 = buffer.writei32
 local writeu8 = buffer.writeu8
-local tostring = buffer.tostring
+local writeu16 = buffer.writeu16
+local writeu32 = buffer.writeu32
+local writef32 = buffer.writef32
+local writef64 = buffer.writef64
+local writestring = buffer.writestring
 
 local default = {
 	point = 0,
-	size = 256,
+	next = 0,
+	size = 128,
+	bufferSize = 128,
 }
 
 function DedicatedBuffer.alloc(self: any, byte: number)
@@ -23,9 +32,13 @@ function DedicatedBuffer.alloc(self: any, byte: number)
 	end
 
 	local newBuffer: buffer = create(size)
+	DedicatedBuffer.copy(self, 0, newBuffer)
 	copy(newBuffer, 0, b)
 
 	b = newBuffer
+
+	self.point  = self.next
+	self.next += byte
 end
 
 function DedicatedBuffer.build(self: any): buffer
@@ -36,23 +49,64 @@ function DedicatedBuffer.build(self: any): buffer
 	return build
 end
 
-function DedicatedBuffer.writeu8(self: any, val: number)
+function DedicatedBuffer.wi8(self: any, val: number)
+	DedicatedBuffer.alloc(self, 1)
+	writei8(self.buffer, self.point, val)
+end
+
+function DedicatedBuffer.wi16(self: any, val: number)
+	DedicatedBuffer.alloc(self, 2)
+	writei16(self.buffer, self.point, val)
+end
+
+function DedicatedBuffer.wi32(self: any, val: number)
+	DedicatedBuffer.alloc(self, 4)
+	writei32(self.buffer, self.point, val)
+end
+
+function DedicatedBuffer.wu8(self: any, val: number)
 	DedicatedBuffer.alloc(self, 1)
 	writeu8(self.buffer, self.point, val)
-	self.point += 1
+end
+
+function  DedicatedBuffer.wu16(self: any, val: number)
+	DedicatedBuffer.alloc(self, 2)
+	writeu16(self.buffer, self.point, val)
+end
+
+function DedicatedBuffer.wu32(self: any, val: number)
+	DedicatedBuffer.alloc(self, 4)
+	writeu32(self.buffer, self.point, val)
+end
+
+function DedicatedBuffer.wf32(self: any, val: number)
+	DedicatedBuffer.alloc(self, 4)
+	writef32(self.buffer, self.point, val)
+end
+
+function DedicatedBuffer.wf64(self: any, val: number)
+	DedicatedBuffer.alloc(self, 8)
+	writef64(self.buffer, self.point, val)
+end
+
+function DedicatedBuffer.wstring(self: any, val: string)
+	DedicatedBuffer.alloc(self, #val)
+	writestring(self.buffer, self.point, val)
 end
 
 function DedicatedBuffer.flush(self: any)
 	self.point = default.point
+	self.next = default.next
 	self.size = default.size
-	self.buffer = create(256)
+	self.buffer = create(default.bufferSize)
 end
 
 function DedicatedBuffer.new()
 	return setmetatable({
 		point = default.point,
+		next = default.next,
 		size = default.size,
-		buffer = create(256)
+		buffer = create(default.bufferSize)
 	}, DedicatedBuffer)
 end
 

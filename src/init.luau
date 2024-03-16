@@ -13,4 +13,6 @@ return {
 	
 	Signal = Index.Signal,
 	fromSignalArray = Index.fromSignalArray,
+
+	buffer = Index.buffer,
 }

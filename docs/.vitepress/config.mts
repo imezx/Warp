@@ -39,6 +39,7 @@ function side() {
             text: 'Utilities',
             items: [
               { text: 'Signal', link: '/api/1.0/signal' },
+              { text: 'Buffer', link: '/api/1.0/buffer' },
             ]
           },
         ]

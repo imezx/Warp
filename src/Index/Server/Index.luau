@@ -17,7 +17,7 @@ local Buffer = require(Util.Buffer)
 function Server.new(Identifier: string, rateLimit: Type.rateLimitArg?)
 	local self = setmetatable({}, Server)
 	self._buffer = Buffer.new()
-	self._buffer:writeu8(Serdes(Identifier))
+	self._buffer:wu8(Serdes(Identifier))
 	self.id = Buffer.convert(self._buffer:build())
 	self.fn = {}
 	self.IsConnected = false

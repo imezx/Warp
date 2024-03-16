@@ -12,6 +12,7 @@ local Client = script.Client
 local Type = require(script.Type)
 local Assert = require(Util.Assert)
 local Signal = require(script.Signal)
+local Buffer = require(Util.Buffer)
 
 if IsServer then
 	require(Server.ServerProcess).start()
@@ -64,7 +65,11 @@ function Index.fromSignalArray(arrays: { any })
 	for _, identifier: string in arrays do
 		copy[identifier] = Index.Signal(identifier)
 	end
-	return copy :: typeof(copy)
+	return table.freeze(copy) :: typeof(copy)
+end
+
+function Index.buffer()
+	return Buffer.new()
 end
 
 return table.freeze(Index) :: typeof(Index)

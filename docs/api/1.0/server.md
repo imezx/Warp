@@ -97,7 +97,7 @@ Disconnect the event connection.
 ```lua [Variable]
 (
 	key: string
-)
+): boolean
 ```
 
 ```lua [Example]
@@ -170,7 +170,7 @@ Remote:FireExcept(true, { Players.Eternity_Devs, Players.Player2 }, "Hello World
 
 ## `:Invoke` <Badge type="warning" text="yield" />
 
-Semiliar to `:InvokeClient`, its for Invoke to a client.
+Semiliar to `:InvokeClient`,  but it have timeout system that not exists on `RemoteFunction.InvokeClient`.
 
 ::: code-group
 ```lua [Variable]
@@ -195,7 +195,7 @@ This function is yielded, once it timeout it will return nil.
 Wait the event being triggered.
 
 ```lua
-Remote:Wait()
+Remote:Wait() -- :Wait return number value
 ```
 
 ::: warning
