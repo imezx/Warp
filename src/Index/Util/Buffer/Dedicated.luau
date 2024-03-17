@@ -23,6 +23,14 @@ local default = {
 	bufferSize = 128,
 }
 
+function DedicatedBuffer.copy(self: any, offset: number, b: buffer?, src: buffer?, srcOffset: number?, count: number?)
+	if not b then
+		copy(create(count or default.size), offset, src or self.buffer, srcOffset, count)
+	else
+		copy(b, offset, src or self.buffer, srcOffset, count)
+	end
+end
+
 function DedicatedBuffer.alloc(self: any, byte: number)
 	local size: number = self.size
 	local b: buffer = self.buffer
@@ -32,7 +40,6 @@ function DedicatedBuffer.alloc(self: any, byte: number)
 	end
 
 	local newBuffer: buffer = create(size)
-	DedicatedBuffer.copy(self, 0, newBuffer)
 	copy(newBuffer, 0, b)
 
 	b = newBuffer
