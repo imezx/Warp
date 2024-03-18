@@ -99,12 +99,11 @@ end
 function ClientProcess.start()
 	RunService.PostSimulation:Connect(function()
 		for Identifier: string, data: any in unreliableClientQueue do
-			if #data > 0 then
-				if clientRatelimit[Identifier](#data) then
-					UnreliableEvent:FireServer(Buffer.revert(Identifier), data)
-				end
-				table.clear(data)
+			if #data == 0 then continue end
+			if clientRatelimit[Identifier](#data) then
+				UnreliableEvent:FireServer(Buffer.revert(Identifier), data)
 			end
+			table.clear(data)
 		end
 		for Identifier: string, data: any in clientQueue do
 			if #data > 0 then
@@ -131,9 +130,9 @@ function ClientProcess.start()
 				if #queueIn[Identifier] > 0 then
 					for _, packedDatas: any in queueIn[Identifier] do
 						if #packedDatas == 0 then continue end
-						for _, v: any in packedDatas do
-							for _, fn: any in clientCallback[Identifier] do
-								Spawn(fn, table.unpack(v))
+						for _, fn: any in clientCallback[Identifier] do
+							for i=1,math.min(1e3, #packedDatas) do
+								Spawn(fn, table.unpack(packedDatas[i] or {}))
 							end
 						end
 					end
@@ -142,8 +141,10 @@ function ClientProcess.start()
 				if #queueInRequest[1][Identifier] > 0 then
 					for idx, packetDatas: any in queueInRequest[1][Identifier] do
 						if #packetDatas == 0 then continue end
-						for _, packetData in packetDatas do
-							for _, fn: any in clientCallback[Identifier] do
+						for _, fn: any in clientCallback[Identifier] do
+							for i=1,math.min(1e3, #packetDatas) do
+								local packetData = packetDatas[i]
+								if not packetData then continue end
 								Spawn(function()
 									local requestReturn = { fn(table.unpack(packetData[2])) }
 									table.insert(queueOutRequest[2][Identifier], { packetData[1],  requestReturn })
@@ -157,10 +158,12 @@ function ClientProcess.start()
 					for _, packetDatas: any in queueInRequest[2][Identifier] do
 						for _, packetData in packetDatas do
 							if #packetData == 1 then continue end
-							for idx, clientRequest in clientRequestQueue[Identifier] do
+							for y=1, math.min(1e3, #clientRequestQueue[Identifier]) do
+								local clientRequest = clientRequestQueue[Identifier][y]
+								if not clientRequest then continue end
 								if clientRequest[1] == packetData[1] then
 									Spawn(clientRequest[2], table.unpack(packetData[2]))
-									table.remove(clientRequestQueue[Identifier], idx)
+									table.remove(clientRequestQueue[Identifier], y)
 									break
 								end
 							end

@@ -173,9 +173,9 @@ function ServerProcess.start()
 					if #queueIn[Identifier][player] > 0 then
 						for _, packedDatas: any in queueIn[Identifier][player] do
 							if #packedDatas == 0 then continue end
-							for _, v: any in packedDatas do
-								for _, fn: any in serverCallback[Identifier] do
-									Spawn(fn, player, table.unpack(v))
+							for _, fn: any in serverCallback[Identifier] do
+								for i=1,math.min(1e3, #packedDatas) do
+									Spawn(fn, player, table.unpack(packedDatas[i] or {}))
 								end
 							end
 						end
@@ -184,8 +184,10 @@ function ServerProcess.start()
 					if #queueInRequest[1][Identifier][player] > 0 then
 						for idx, packetDatas: any in queueInRequest[1][Identifier][player] do
 							if #packetDatas == 0 then continue end
-							for _, packetData in packetDatas do
-								for _, fn: any in serverCallback[Identifier] do
+							for _, fn: any in serverCallback[Identifier] do
+								for i=1,math.min(1e3, #packetDatas) do
+									local packetData = packetDatas[i]
+									if not packetData then continue end
 									Spawn(function()
 										local requestReturn = { fn(player, table.unpack(packetData[2])) }
 										table.insert(queueOutRequest[2][Identifier][player], { packetData[1], requestReturn })
@@ -197,12 +199,15 @@ function ServerProcess.start()
 					end
 					if #queueInRequest[2][Identifier][player] > 0 then
 						for _, packetDatas: any in queueInRequest[2][Identifier][player] do
-							for _, packetData in packetDatas do
+							for idx, packetData in packetDatas do
 								if #packetData == 1 then continue end
-								for idx, serverRequest in serverRequestQueue[Identifier][player] do
+								for y=1, math.min(1e3, #serverRequestQueue[Identifier][player]) do
+									local serverRequest = serverRequestQueue[Identifier][player][y]
+									if not serverRequest then continue end
 									if serverRequest[1] == packetData[1] then
 										Spawn(serverRequest[2], table.unpack(packetData[2]))
-										table.remove(serverRequestQueue[Identifier], idx)
+										table.remove(packetDatas, idx)
+										table.remove(serverRequestQueue[Identifier][player], y)
 										break
 									end
 								end
