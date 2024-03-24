@@ -34,7 +34,8 @@ end
 function DedicatedBuffer.alloc(self: any, byte: number)
 	local size: number = self.size
 	local b: buffer = self.buffer
-	
+
+
 	while self.point + byte >= size do
 		size = math.floor(size * 1.5)
 	end
@@ -49,7 +50,7 @@ function DedicatedBuffer.alloc(self: any, byte: number)
 end
 
 function DedicatedBuffer.build(self: any): buffer
-	local p: number = self.point
+	local p: number = self.next > self.point and self.next or self.point
 	local build: buffer = create(p)
 
 	copy(build, 0, self.buffer, 0, p)
