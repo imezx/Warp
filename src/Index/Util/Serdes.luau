@@ -15,9 +15,18 @@ return function(Identifier: string): number
 			--Event:SetAttribute(Identifier, string.pack("I1", SerInt)) -- I1 -> 255 max, I2 -> ~ 6.5e4 max. (SerInt)
 		end
 	else
+		local loaded = false
+		task.delay(10, function()
+			if loaded then
+				return
+			end
+			warn(`{Identifier} is taking too long to load on the server.`)
+		end)
+
 		while not Event:GetAttribute(Identifier) do
 			task.wait(0.5)
 		end
+		loaded = true
 	end
 	return Event:GetAttribute(Identifier)
 end
