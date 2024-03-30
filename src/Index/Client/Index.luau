@@ -19,7 +19,7 @@ function Client.new(Identifier: string)
 
 	local self = setmetatable({}, Client)
 	self._buffer = Buffer.new()
-	self._buffer:wu8()
+	self._buffer:wu8(id)
 	self.id = Buffer.convert(self._buffer:build())
 	self.fn = {}
 	self.IsConnected = false
