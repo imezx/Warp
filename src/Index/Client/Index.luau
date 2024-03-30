@@ -14,9 +14,12 @@ local Serdes = require(Util.Serdes)
 local Buffer = require(Util.Buffer)
 
 function Client.new(Identifier: string)
+	local id = Serdes(Identifier)
+	if not id then return end
+
 	local self = setmetatable({}, Client)
 	self._buffer = Buffer.new()
-	self._buffer:wu8(Serdes(Identifier))
+	self._buffer:wu8()
 	self.id = Buffer.convert(self._buffer:build())
 	self.fn = {}
 	self.IsConnected = false
