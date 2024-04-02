@@ -108,7 +108,7 @@ function ServerProcess.insertRequest(Identifier: string, timeout: number, player
 	local cancel = task.delay(timeout, function()
 		task.spawn(yieldThread, nil)
 	end)
-	table.insert(serverRequestQueue[Identifier][player], { tostring(Key()), function(...: any)
+	table.insert(serverRequestQueue[Identifier][player], { Key(), function(...: any)
 		if (os.clock() - start) > timeout then return end
 		task.cancel(cancel)
 		task.spawn(yieldThread, ...)
