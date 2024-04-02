@@ -55,7 +55,7 @@ function Server:Invoke(timeout: number, player: Player, ...: any): any
 end
 
 function Server:Connect(callback: (plyer: Player, args: any) -> ()): string
-	local key = tostring(Key())
+	local key = Key()
 	table.insert(self.fn, key)
 	ServerProcess.addCallback(self.id, key, callback)
 	self.IsConnected = #self.fn > 0
@@ -63,7 +63,7 @@ function Server:Connect(callback: (plyer: Player, args: any) -> ()): string
 end
 
 function Server:Once(callback: (plyer: Player, args: any) -> ()): string
-	local key = tostring(Key())
+	local key = Key()
 	table.insert(self.fn, key)
 	self.IsConnected = #self.fn > 0
 	ServerProcess.addCallback(self.id, key, function(...)
