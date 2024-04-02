@@ -12,6 +12,7 @@ local Spawn = require(Util.Spawn)
 local Key = require(Util.Key)
 local RateLimit = require(Util.RateLimit)
 local Buffer = require(Util.Buffer)
+local Logger = require(script.Logger)
 
 local clientRatelimit: Type.StoredRatelimit = {}
 local clientQueue: Type.QueueMap = {}
@@ -40,6 +41,9 @@ local incoming_cache: {
 	[string]: {
 		any
 	}
+} = {}
+local logger: {
+	[string]: boolean
 } = {}
 
 queueInRequest[1] = {}
@@ -72,7 +76,7 @@ function ClientProcess.insertRequest(Identifier: string, timeout: number, ...: a
 	return coroutine.yield()
 end
 
-function ClientProcess.add(Identifier: string, originId: string)
+function ClientProcess.add(Identifier: any, originId: string)
 	if not clientQueue[Identifier] then
 		clientRatelimit[Identifier] = RateLimit.create(originId)
 		clientQueue[Identifier] = {}
@@ -88,12 +92,27 @@ function ClientProcess.add(Identifier: string, originId: string)
 	end
 end
 
+function ClientProcess.logger(Identifier: string, store: boolean, log: boolean)
+	logger[Identifier] = store
+	Logger.write(Identifier, `state: change -> {log == true and "enabled" or "disabled"} logger.`, log)
+end
+
+function ClientProcess.getlogs(Identifier: string)
+	return Logger.read(Identifier)
+end
+
 function ClientProcess.addCallback(Identifier: string, key: string, callback)
 	clientCallback[Identifier][key] = callback
+	if logger[Identifier] then
+		task.defer(Logger.write, Identifier, `state: change -> new callback added.`)
+	end
 end
 
 function ClientProcess.removeCallback(Identifier: string, key: string)
 	clientCallback[Identifier][key] = nil
+	if logger[Identifier] then
+		task.defer(Logger.write, Identifier, `state: change -> removed a callback.`)
+	end
 end
 
 function ClientProcess.start()
@@ -102,6 +121,9 @@ function ClientProcess.start()
 			if #data == 0 then continue end
 			if clientRatelimit[Identifier](#data) then
 				UnreliableEvent:FireServer(Buffer.revert(Identifier), data)
+				if logger[Identifier] then
+					task.defer(Logger.write, Identifier, `state: out -> unreliable -> {#data} data.`)
+				end
 			end
 			table.clear(data)
 		end
@@ -110,6 +132,9 @@ function ClientProcess.start()
 			if #data > 0 then
 				if clientRatelimit[Identifier](#data) then
 					ReliableEvent:FireServer(Buffer.revert(Identifier), data)
+					if logger[Identifier] then
+						task.defer(Logger.write, Identifier, `state: out -> reliable -> {#data} data.`)
+					end
 				end
 				table.clear(data)
 			end
@@ -177,11 +202,17 @@ function ClientProcess.start()
 		for Identifier: string, requestsData in queueOutRequest[1] do
 			if #requestsData == 0 then continue end
 			RequestEvent:FireServer(Buffer.revert(Identifier), "\1", requestsData)
+			if logger[Identifier] then
+				task.defer(Logger.write, Identifier, `state: out -> request -> {#requestsData} data.`)
+			end
 			table.clear(queueOutRequest[1][Identifier])
 		end
-		for Identifier: string, requestsData in queueOutRequest[2] do
-			if #requestsData == 0 then continue end
-			RequestEvent:FireServer(Buffer.revert(Identifier), "\0", requestsData)
+		for Identifier: string, toReturnDatas in queueOutRequest[2] do
+			if #toReturnDatas == 0 then continue end
+			RequestEvent:FireServer(Buffer.revert(Identifier), "\0", toReturnDatas)
+			if logger[Identifier] then
+				task.defer(Logger.write, Identifier, `state: out -> return request -> {#toReturnDatas} data.`)
+			end
 			table.clear(queueOutRequest[2][Identifier])
 		end
 	end)
@@ -190,6 +221,9 @@ function ClientProcess.start()
 		Identifier = Buffer.convert(Identifier)
 		if not queueIn[Identifier] then
 			queueIn[Identifier] = {}
+		end
+		if logger[Identifier] then
+			task.defer(Logger.write, Identifier, `state: in -> net -> {#data} data.`)
 		end
 		if not clientCallback[Identifier] then
 			if not incoming_cache[Identifier] then
@@ -202,13 +236,16 @@ function ClientProcess.start()
 	end
 	ReliableEvent.OnClientEvent:Connect(onClientNetworkReceive)
 	UnreliableEvent.OnClientEvent:Connect(onClientNetworkReceive)
-	RequestEvent.OnClientEvent:Connect(function(Identifier: any, action: string, returnDatas)
-		if not Identifier or not returnDatas then return end
+	RequestEvent.OnClientEvent:Connect(function(Identifier: any, action: string, data)
+		if not Identifier or not data then return end
 		Identifier = Buffer.convert(Identifier)
 		if action == "\1" then
-			table.insert(queueInRequest[1][Identifier], returnDatas)
+			table.insert(queueInRequest[1][Identifier], data)
 		else
-			table.insert(queueInRequest[2][Identifier], returnDatas)
+			table.insert(queueInRequest[2][Identifier], data)
+		end
+		if logger[Identifier] then
+			task.defer(Logger.write, Identifier, `state: in -> request -> {#data} data.`)
 		end
 	end)
 end

@@ -13,6 +13,7 @@ export type Client = {
 	DisconnectAll: (self: Client) -> (),
 	Destroy: (self: Client) -> (),
 	Wait: (self: Client) -> number,
+	Logging: (self: Client, store: boolean, opt: boolean) -> (),
 }
 
 export type Server = {
@@ -25,6 +26,7 @@ export type Server = {
 	DisconnectAll: (self: Server) -> (),
 	Destroy: (self: Server) -> (),
 	Wait: (self: Server) -> number,
+	Logging: (self: Server, store: boolean, opt: boolean) -> (),
 }
 
 export type Signal = {

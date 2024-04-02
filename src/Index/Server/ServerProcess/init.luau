@@ -13,6 +13,7 @@ local Spawn = require(Util.Spawn)
 local Key = require(Util.Key)
 local RateLimit = require(Util.RateLimit)
 local Buffer = require(Util.Buffer)
+local Logger = require(script.Logger)
 
 local serverQueue: Type.QueueMap = {}
 local unreliableServerQueue: Type.QueueMap = {}
@@ -43,6 +44,10 @@ local queueOutRequest: {
 		}
 	}
 } = {}
+local logger: {
+	[string]: boolean
+} = {}
+
 queueInRequest[1] = {}
 queueInRequest[2] = {}
 queueOutRequest[1] = {}
@@ -131,12 +136,27 @@ function ServerProcess.add(Identifier: string, originId: string, ratelimit: Type
 	end
 end
 
+function ServerProcess.logger(Identifier: string, store: boolean, log: boolean)
+	logger[Identifier] = store
+	Logger.write(Identifier, `state: change -> {log == true and "enabled" or "disabled"} logger.`, log)
+end
+
+function ServerProcess.getlogs(Identifier: string)
+	return Logger.read(Identifier)
+end
+
 function ServerProcess.addCallback(Identifier: string, key: string, callback)
 	serverCallback[Identifier][key] = callback
+	if logger[Identifier] then
+		task.defer(Logger.write, Identifier, `state: change -> new callback added.`)
+	end
 end
 
 function ServerProcess.removeCallback(Identifier: string, key: string)
 	serverCallback[Identifier][key] = nil
+	if logger[Identifier] then
+		task.defer(Logger.write, Identifier, `state: change -> removed a callback.`)
+	end
 end
 
 function ServerProcess.start()
@@ -145,6 +165,9 @@ function ServerProcess.start()
 			for player: Player, data: any in players do
 				if #data == 0 then continue end
 				UnreliableEvent:FireClient(player, Buffer.revert(Identifier), data)
+				if logger[Identifier] then
+					task.defer(Logger.write, Identifier, `state: out -> unreliable -> {#data} data.`)
+				end
 				table.clear(data)
 			end
 		end
@@ -153,10 +176,14 @@ function ServerProcess.start()
 			for Identifier: string, data: any in queueOut[player] do
 				if #data == 0 then continue end
 				ReliableEvent:FireClient(player, Buffer.revert(Identifier), data)
+				if logger[Identifier] then
+					task.defer(Logger.write, Identifier, `state: out -> reliable -> {#data} data.`)
+				end
 				table.clear(data)
 			end
 		end
 		for Identifier: string, players in serverQueue do
+			local callback = serverCallback[Identifier] or nil
 			for player: Player, data in players do
 				if #data > 0 and queueOut[player] then
 					queueOut[player][Identifier] = table.clone(data)
@@ -169,11 +196,11 @@ function ServerProcess.start()
 						table.remove(requestData, #requestData)
 					end
 				end
-				if serverCallback[Identifier] then
+				if callback then
 					if #queueIn[Identifier][player] > 0 then
 						for _, packedDatas: any in queueIn[Identifier][player] do
 							if #packedDatas == 0 then continue end
-							for _, fn: any in serverCallback[Identifier] do
+							for _, fn: any in callback do
 								for i=1,math.min(1e3, #packedDatas) do
 									Spawn(fn, player, table.unpack(packedDatas[i] or {}))
 								end
@@ -184,7 +211,7 @@ function ServerProcess.start()
 					if #queueInRequest[1][Identifier][player] > 0 then
 						for idx, packetDatas: any in queueInRequest[1][Identifier][player] do
 							if #packetDatas == 0 then continue end
-							for _, fn: any in serverCallback[Identifier] do
+							for _, fn: any in callback do
 								for i=1,math.min(1e3, #packetDatas) do
 									local packetData = packetDatas[i]
 									if not packetData then continue end
@@ -218,11 +245,17 @@ function ServerProcess.start()
 					for player: Player, requestsData: any in queueOutRequest[1][Identifier] do
 						if #requestsData == 0 then continue end
 						RequestEvent:FireClient(player, Buffer.revert(Identifier), "\1", requestsData)
+						if logger[Identifier] then
+							task.defer(Logger.write, Identifier, `state: out -> request -> {#requestsData} data.`)
+						end
 						table.clear(requestsData)
 					end
 					for player: Player, toReturnDatas: any in queueOutRequest[2][Identifier] do
 						if #toReturnDatas == 0 then continue end
 						RequestEvent:FireClient(player, Buffer.revert(Identifier), "\0", toReturnDatas)
+						if logger[Identifier] then
+							task.defer(Logger.write, Identifier, `state: out -> return request -> {#toReturnDatas} data.`)
+						end
 						table.clear(toReturnDatas)
 					end
 				end
@@ -240,6 +273,9 @@ function ServerProcess.start()
 		end
 		if not queueIn[Identifier][player] then
 			queueIn[Identifier][player] = {}
+		end
+		if logger[Identifier] then
+			task.defer(Logger.write, Identifier, `state: in -> net -> {#data} data.`)
 		end
 		table.insert(queueIn[Identifier][player], data)
 	end
@@ -259,6 +295,9 @@ function ServerProcess.start()
 			table.insert(queueInRequest[1][Identifier][player], data)
 		else
 			table.insert(queueInRequest[2][Identifier][player], data)
+		end
+		if logger[Identifier] then
+			task.defer(Logger.write, Identifier, `state: in -> request -> {#data} data.`)
 		end
 	end)
 end

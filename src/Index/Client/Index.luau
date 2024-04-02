@@ -13,16 +13,23 @@ local Key = require(Util.Key)
 local Serdes = require(Util.Serdes)
 local Buffer = require(Util.Buffer)
 
-function Client.new(Identifier: string)
+function Client.new(Identifier: string, yieldWait: number?)
 	local self = setmetatable({}, Client)
 	self._buffer = Buffer.new()
-	self._buffer:wu8(Serdes(Identifier))
+	self._buffer:wu8(Serdes(Identifier, yieldWait))
 	self.id = Buffer.convert(self._buffer:build())
 	self.fn = {}
 	self.IsConnected = false
 	ClientProcess.add(self.id, Identifier)
 	self._buffer:remove()
 	return self
+end
+
+function Client:Logging(store: boolean, opt: boolean)
+	ClientProcess.logger(self.id, store, opt)
+	return function()
+		return ClientProcess.getlogs(self.id)
+	end
 end
 
 function Client:Fire(reliable: boolean,...: any)

@@ -55,7 +55,7 @@ end
 
 function Signal:Fire(...: any): ()
 	for _, handle in self do
-		pcall(handle.fn, ...)
+		task.spawn(handle.fn, ...)
 	end
 end
 

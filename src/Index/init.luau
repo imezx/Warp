@@ -25,10 +25,10 @@ function Index.Server(Identifier: string, rateLimit: Type.rateLimitArg?): Type.S
 	Assert(typeof(Identifier) == "string", `[Warp]: Identifier must be a string type, got {typeof(Identifier)}`)
 	return require(Server.Index)(Identifier, rateLimit) :: Type.Server
 end
-function Index.Client(Identifier: string): Type.Client
+function Index.Client(Identifier: string, yieldWait: number?): Type.Client
 	Assert(not IsServer, `[Warp]: Calling .Client({Identifier}) on server side (expected client side)`)
 	Assert(typeof(Identifier) == "string", `[Warp]: Identifier must be a string type, got {typeof(Identifier)}`)
-	return require(Client.Index)(Identifier) :: Type.Client
+	return require(Client.Index)(Identifier, yieldWait) :: Type.Client
 end
 
 function Index.fromServerArray(arrays: { any }): Type.fromServerArray

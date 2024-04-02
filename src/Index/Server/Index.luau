@@ -26,6 +26,13 @@ function Server.new(Identifier: string, rateLimit: Type.rateLimitArg?)
 	return self
 end
 
+function Server:Logging(store: boolean, opt: boolean)
+	ServerProcess.logger(self.id, store, opt)
+	return function()
+		return ServerProcess.getlogs(self.id)
+	end
+end
+
 function Server:Fire(reliable: boolean, player: Player, ...: any)
 	ServerProcess.insertQueue(self.id, reliable, player, ...)
 end
