@@ -41,7 +41,7 @@ function Client:Invoke(timeout: number, ...: any): any
 end
 
 function Client:Connect(callback: (args: any) -> ()): string
-	local key = tostring(Key())
+	local key = Key()
 	table.insert(self.fn, key)
 	self.IsConnected = #self.fn > 0
 	ClientProcess.addCallback(self.id, key, callback)
@@ -49,7 +49,7 @@ function Client:Connect(callback: (args: any) -> ()): string
 end
 
 function Client:Once(callback: (args: any) -> ()): string
-	local key = tostring(Key())
+	local key = Key()
 	table.insert(self.fn, key)
 	self.IsConnected = #self.fn > 0
 	ClientProcess.addCallback(self.id, key, function(...)
