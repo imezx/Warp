@@ -26,7 +26,7 @@ function Server.new(Identifier: string, rateLimit: Type.rateLimitArg?)
 	return self
 end
 
-function Server:Logging(store: boolean, opt: boolean)
+function Server:Log(store: boolean, opt: boolean)
 	ServerProcess.logger(self.id, store, opt)
 	return function()
 		return ServerProcess.getlogs(self.id)
@@ -37,13 +37,13 @@ function Server:Fire(reliable: boolean, player: Player, ...: any)
 	ServerProcess.insertQueue(self.id, reliable, player, ...)
 end
 
-function Server:Fires(reliable: boolean, ...: any)
+function Server:FireAll(reliable: boolean, ...: any)
 	for _, player: Player in ipairs(Players:GetPlayers()) do
 		ServerProcess.insertQueue(self.id, reliable, player, ...)
 	end
 end
 
-function Server:FireExcept(reliable: boolean, except: { Player }, ...: any)
+function Server:FireAllExcept(reliable: boolean, except: { Player }, ...: any)
 	for _, player: Player in ipairs(Players:GetPlayers()) do
 		if table.find(except, player) then continue end
 		ServerProcess.insertQueue(self.id, reliable, player, ...)
