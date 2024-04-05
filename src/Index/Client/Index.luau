@@ -25,7 +25,7 @@ function Client.new(Identifier: string, yieldWait: number?)
 	return self
 end
 
-function Client:Logging(store: boolean, opt: boolean)
+function Client:Log(store: boolean, opt: boolean)
 	ClientProcess.logger(self.id, store, opt)
 	return function()
 		return ClientProcess.getlogs(self.id)
