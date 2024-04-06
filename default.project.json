@@ -1,12 +1,6 @@
 {
   "name": "Warp",
   "tree": {
-    "$className": "DataModel",
-    "ReplicatedStorage": {
-      "$className": "ReplicatedStorage",
-      "Warp": {
-        "$path": "src"
-      }
-    }
+    "$path": "src"
   }
 }
