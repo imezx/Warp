@@ -59,55 +59,55 @@ end
 
 function DedicatedBuffer.wi8(self: any, val: number)
 	if not val then return end
-	DedicatedBuffer:alloc(1)
+	self:alloc(1)
 	writei8(self.buffer, self.point, val)
 end
 
 function DedicatedBuffer.wi16(self: any, val: number)
 	if not val then return end
-	DedicatedBuffer:alloc(2)
+	self:alloc(2)
 	writei16(self.buffer, self.point, val)
 end
 
 function DedicatedBuffer.wi32(self: any, val: number)
 	if not val then return end
-	DedicatedBuffer:alloc(4)
+	self:alloc(4)
 	writei32(self.buffer, self.point, val)
 end
 
 function DedicatedBuffer.wu8(self: any, val: number)
 	if not val then return end
-	DedicatedBuffer:alloc(1)
+	self:alloc(1)
 	writeu8(self.buffer, self.point, val)
 end
 
 function  DedicatedBuffer.wu16(self: any, val: number)
 	if not val then return end
-	DedicatedBuffer:alloc(2)
+	self:alloc(2)
 	writeu16(self.buffer, self.point, val)
 end
 
 function DedicatedBuffer.wu32(self: any, val: number)
 	if not val then return end
-	DedicatedBuffer:alloc(4)
+	self:alloc(4)
 	writeu32(self.buffer, self.point, val)
 end
 
 function DedicatedBuffer.wf32(self: any, val: number)
 	if not val then return end
-	DedicatedBuffer:alloc(4)
+	self:alloc(4)
 	writef32(self.buffer, self.point, val)
 end
 
 function DedicatedBuffer.wf64(self: any, val: number)
 	if not val then return end
-	DedicatedBuffer:alloc(8)
+	self:alloc(8)
 	writef64(self.buffer, self.point, val)
 end
 
 function DedicatedBuffer.wstring(self: any, val: string)
 	if not val then return end
-	DedicatedBuffer:alloc(#val)
+	self:alloc(#val)
 	writestring(self.buffer, self.point, val)
 end
 

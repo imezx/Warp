@@ -78,17 +78,37 @@ end
 
 function ClientProcess.add(Identifier: any, originId: string)
 	if not clientQueue[Identifier] then
-		clientRatelimit[Identifier] = RateLimit.create(originId)
-		clientQueue[Identifier] = {}
-		unreliableClientQueue[Identifier] = {}
-		clientRequestQueue[Identifier] = {}
-		clientCallback[Identifier] = {}
+		if not clientRatelimit[Identifier] then
+			clientRatelimit[Identifier] = RateLimit.create(originId)
+		end
+		if not clientQueue[Identifier] then
+			clientQueue[Identifier] = {}
+		end
+		if not unreliableClientQueue[Identifier] then
+			unreliableClientQueue[Identifier] = {}
+		end
+		if not clientRequestQueue[Identifier] then
+			clientRequestQueue[Identifier] = {}
+		end
+		if not clientCallback[Identifier] then
+			clientCallback[Identifier] = {}
+		end
 		
-		queueOutRequest[1][Identifier] = {}
-		queueOutRequest[2][Identifier] = {}
-		queueInRequest[1][Identifier] = {}
-		queueInRequest[2][Identifier] = {}
-		queueIn[Identifier] = {}
+		if not queueOutRequest[1][Identifier] then
+			queueOutRequest[1][Identifier] = {}
+		end
+		if not queueOutRequest[2][Identifier] then
+			queueOutRequest[2][Identifier] = {}
+		end
+		if not queueInRequest[1][Identifier] then
+			queueInRequest[1][Identifier] = {}
+		end
+		if not queueInRequest[2][Identifier] then
+			queueInRequest[2][Identifier] = {}
+		end
+		if not queueIn[Identifier] then
+			queueIn[Identifier] = {}
+		end
 	end
 end
 
