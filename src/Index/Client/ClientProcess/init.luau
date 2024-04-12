@@ -136,6 +136,7 @@ function ClientProcess.removeCallback(Identifier: string, key: string)
 end
 
 function ClientProcess.start()
+	debug.setmemorycategory("Warp")
 	RunService.PostSimulation:Connect(function()
 		for Identifier: string, data: any in unreliableClientQueue do
 			if #data == 0 then continue end

@@ -178,6 +178,7 @@ function ServerProcess.removeCallback(Identifier: string, key: string)
 end
 
 function ServerProcess.start()
+	debug.setmemorycategory("Warp")
 	RunService.PostSimulation:Connect(function()
 		for Identifier: string, players in unreliableServerQueue do
 			for player: Player, data: any in players do
