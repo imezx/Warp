@@ -47,6 +47,9 @@ local queueOutRequest: {
 local logger: {
 	[string]: boolean
 } = {}
+local players: {
+	Player
+} = {}
 
 queueInRequest[1] = {}
 queueInRequest[2] = {}
@@ -58,6 +61,7 @@ local UnreliableEvent = Event.Unreliable
 local RequestEvent = Event.Request
 
 local function initializeEachPlayer(player: Player)
+	players = Players:GetPlayers()
 	if not player then return end
 	if not queueOut[player] then
 		queueOut[player] = {}
@@ -85,6 +89,9 @@ local function initializeEachPlayer(player: Player)
 end
 
 Players.PlayerAdded:Connect(initializeEachPlayer)
+Players.PlayerRemoving:Connect(function()
+	players = Players:GetPlayers()
+end)
 
 function ServerProcess.insertQueue(Identifier: string, reliable: boolean, player: Player, ...: any)
 	if not reliable then
@@ -190,8 +197,8 @@ function ServerProcess.start()
 				table.clear(data)
 			end
 		end
-		for _, player: Player in ipairs(Players:GetPlayers()) do
-			if not queueOut[player] then continue end
+		for _, player: Player in ipairs(players) do
+			if not player or not queueOut[player] then continue end
 			for Identifier: string, data: any in queueOut[player] do
 				if #data == 0 then continue end
 				ReliableEvent:FireClient(player, Buffer.revert(Identifier), data)
