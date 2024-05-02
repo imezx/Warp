@@ -4,14 +4,14 @@ local Type = require(script.Parent.Type)
 
 local function createInstance(parent: Instance, name: string, class: string)
 	if not parent:FindFirstChild(name) then
-		local newInstance: Instance = Instance.new(class)
+		local newInstance = Instance.new(class)
 		newInstance.Name = name
 		newInstance.Parent = parent
 	end
 end
 
 local function waitForChildren(parent: Instance, childrenNames: {string})
-	for _, name: string in ipairs(childrenNames) do
+	for _, name in ipairs(childrenNames) do
 		task.spawn(function()
 			repeat
 				task.wait()
