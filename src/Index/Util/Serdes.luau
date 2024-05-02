@@ -20,10 +20,11 @@ return function(Identifier: string, timeout: number?): number
 			retreived = true
 			error(`Serdes: {Identifier} is taking too long to retrieve, seems like not replicated on server.`, 2)
 		end)
+
 		task.spawn(function()
-			repeat 
+			while (not retreived and not Event:GetAttribute(Identifier)) do
 				task.wait(0.5)
-			until (retreived and Event:GetAttribute(Identifier))
+			end
 
 			retreived = true
 		end)
