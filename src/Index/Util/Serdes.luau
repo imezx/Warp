@@ -23,7 +23,7 @@ return function(Identifier: string, timeout: number?): number
 		task.spawn(function()
 			repeat 
 				task.wait(0.5)
-			until retreived and Event:GetAttribute(Identifier)
+			until (retreived and Event:GetAttribute(Identifier))
 
 			retreived = true
 		end)
