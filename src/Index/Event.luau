@@ -2,18 +2,30 @@
 local RunService = game:GetService("RunService")
 local Type = require(script.Parent.Type)
 
+local function createInstance(parent: Instance, name: string, class: string)
+	if not parent:FindFirstChild(name) then
+		local newInstance: Instance = Instance.new(class)
+		newInstance.Name = name
+		newInstance.Parent = parent
+	end
+end
+
+local function waitForChildren(parent: Instance, childrenNames: {string})
+	for _, name: string in ipairs(childrenNames) do
+		task.spawn(function()
+			repeat
+				task.wait()
+			until parent:FindFirstChild(name)
+		end)
+	end
+end
+
 if RunService:IsServer() then
-	if not script:FindFirstChild("Reliable") then
-		Instance.new("RemoteEvent", script).Name = "Reliable"
-	end
-	if not script:FindFirstChild("Unreliable") then
-		Instance.new("UnreliableRemoteEvent", script).Name = "Unreliable"
-	end
-	if not script:FindFirstChild("Request") then
-		Instance.new("RemoteEvent", script).Name = "Request"
-	end
-elseif not script:FindFirstChild("Reliable") or not script:FindFirstChild("Unreliable") or not script:FindFirstChild("Request") then
-	repeat task.wait() until script:FindFirstChild("Reliable") and script:FindFirstChild("Unreliable") and script:FindFirstChild("Request")
+	createInstance(script, "Reliable", "RemoteEvent")
+	createInstance(script, "Unreliable", "UnreliableRemoteEvent")
+	createInstance(script, "Request", "RemoteEvent")
+else
+	waitForChildren(script, {"Reliable", "Unreliable", "Request"})
 end
 
 return {
