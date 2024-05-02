@@ -16,7 +16,7 @@ function RateLimit.create(Identifier: string, entrance: number?, interval: numbe
 		task.spawn(function()
 			repeat 
 				task.wait(0.5)				
-			until Event:GetAttribute(Identifier.."_ent") or Event:GetAttribute(Identifier.."_int")
+			until (Event:GetAttribute(Identifier.."_ent") and Event:GetAttribute(Identifier.."_int"))
 			
 			entrance = tonumber(Event:GetAttribute(Identifier.."_ent"))
 			interval = tonumber(Event:GetAttribute(Identifier.."_int"))
