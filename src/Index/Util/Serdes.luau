@@ -12,7 +12,6 @@ return function(Identifier: string, timeout: number?): number
 		if not Event:GetAttribute(Identifier) then
 			SerInt += 1
 			Event:SetAttribute(Identifier, SerInt)
-			--Event:SetAttribute(Identifier, string.pack("I1", SerInt)) -- I1 -> 255 max, I2 -> ~ 6.5e4 max. (SerInt), removed/disabled for buffer migration.
 		end
 	else
 		local retreived = false
@@ -21,10 +20,13 @@ return function(Identifier: string, timeout: number?): number
 			retreived = true
 			error(`Serdes: {Identifier} is taking too long to retrieve, seems like not replicated on server.`, 2)
 		end)
-		while (not retreived) and (not Event:GetAttribute(Identifier)) do
-			task.wait(0.5)
-		end
-		retreived = true
+		task.spawn(function()
+			repeat 
+				task.wait(0.5)
+			until retreived and Event:GetAttribute(Identifier)
+
+			retreived = true
+		end)
 	end
 	return Event:GetAttribute(Identifier)
 end
