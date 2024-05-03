@@ -22,7 +22,7 @@ return function(Identifier: string, timeout: number?): number
 		end)
 
 		task.spawn(function()
-			while (not retreived and not Event:GetAttribute(Identifier)) do
+			while not (retreived and Event:GetAttribute(Identifier)) do
 				task.wait(0.5)
 			end
 
