@@ -14,7 +14,7 @@ function RateLimit.create(Identifier: string, entrance: number?, interval: numbe
 		Event:SetAttribute(Identifier.."_int", interval)
 	else
 		task.spawn(function()
-			while (not Event:GetAttribute(Identifier.."_ent") and not Event:GetAttribute(Identifier.."_int")) do
+			while not (Event:GetAttribute(Identifier.."_ent") and Event:GetAttribute(Identifier.."_int")) do
 				task.wait(0.5)
 			end
 			
