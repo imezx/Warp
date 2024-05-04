@@ -1,7 +1,22 @@
 --!strict
-export type rateLimitArg = {
+type rateLimitArg = {
 	maxEntrance: number?,
 	interval: number?,
+}
+
+type logging = {
+	store: boolean,
+	opt: boolean,
+}
+
+export type ServerConf = {
+	rateLimit: rateLimitArg?,
+	logging: logging?,
+}
+
+export type ClientConf = {
+	yieldWait: number?,
+	logging: logging?,
 }
 
 export type Client = {
@@ -11,9 +26,9 @@ export type Client = {
 	Once: (self: Client, callback: (player: Player, ...any) -> ()) -> string,
 	Disconnect: (self: Client, key: string) -> (),
 	DisconnectAll: (self: Client) -> (),
-	Destroy: (self: Client) -> (),
 	Wait: (self: Client) -> number,
-	Logging: (self: Client, store: boolean, opt: boolean) -> (),
+	Destroy: (self: Client) -> (),
+	logs: (self: Client) -> any,
 }
 
 export type Server = {
@@ -24,9 +39,9 @@ export type Server = {
 	Once: (self: Server, callback: (player: Player, ...any) -> ()) -> string,
 	Disconnect: (self: Server, key: string) -> (),
 	DisconnectAll: (self: Server) -> (),
-	Destroy: (self: Server) -> (),
 	Wait: (self: Server) -> number,
-	Logging: (self: Server, store: boolean, opt: boolean) -> (),
+	Destroy: (self: Server) -> (),
+	logs: (self: Server) -> any,
 }
 
 export type Signal = {

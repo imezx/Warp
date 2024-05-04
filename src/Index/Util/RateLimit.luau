@@ -26,7 +26,7 @@ function RateLimit.create(Identifier: string, entrance: number?, interval: numbe
 				entrances = 0
 			end)
 		end
-		entrances += incoming and incoming or 1
+		entrances += incoming or 1
 		return (entrances <= entrance :: number)
 	end
 end

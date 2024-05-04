@@ -14,23 +14,25 @@ local Key = require(Util.Key)
 local Serdes = require(Util.Serdes)
 local Buffer = require(Util.Buffer)
 
-function Server.new(Identifier: string, rateLimit: Type.rateLimitArg?)
+function Server.new(Identifier: string, conf: Type.ServerConf?)
 	local self = setmetatable({}, Server)
+
 	self._buffer = Buffer.new()
 	self._buffer:wu8(Serdes(Identifier))
 	self.id = Buffer.convert(self._buffer:build())
 	self.fn = {}
+	self._conf = table.freeze(conf or {})
 	self.IsConnected = false
-	ServerProcess.add(self.id, Identifier, rateLimit or { maxEntrance = 200, interval = 2 })
+
+	ServerProcess.add(self.id, Identifier, conf or { rateLimit = { maxEntrance = 200, interval = 2 } })
 	self._buffer:remove()
+
 	return self
 end
 
-function Server:Logging(store: boolean, opt: boolean)
-	ServerProcess.logger(self.id, store, opt)
-	return function()
-		return ServerProcess.getlogs(self.id)
-	end
+function Server:logs()
+	Assert(self._conf.logging, "[Server]: Event is not configured with logging.")
+	return ServerProcess.getlogs(self.id)
 end
 
 function Server:Fire(reliable: boolean, player: Player, ...: any)
@@ -47,6 +49,13 @@ function Server:FireExcept(reliable: boolean, except: { Player }, ...: any)
 	for _, player: Player in ipairs(Players:GetPlayers()) do
 		if table.find(except, player) then continue end
 		ServerProcess.insertQueue(self.id, reliable, player, ...)
+	end
+end
+
+function Server:FireIn(reliable: boolean, range: number, from: Vector3, data: { any }, except: { Player }?)
+	for _, player: Player in ipairs(Players:GetPlayers()) do
+		if (except and table.find(except, player)) or not player.Character or not player.Character.PrimaryPart or (player.Character.PrimaryPart.Position - from).Magnitude < range then continue end
+		ServerProcess.insertQueue(self.id, reliable, player, table.unpack(data))
 	end
 end
 

@@ -76,8 +76,11 @@ function ClientProcess.insertRequest(Identifier: string, timeout: number, ...: a
 	return coroutine.yield()
 end
 
-function ClientProcess.add(Identifier: any, originId: string)
+function ClientProcess.add(Identifier: any, originId: string, conf: Type.ClientConf)
 	if not clientQueue[Identifier] then
+		if conf.logging then
+			ClientProcess.logger(Identifier, conf.logging.store, conf.logging.opt)
+		end
 		if not clientRatelimit[Identifier] then
 			clientRatelimit[Identifier] = RateLimit.create(originId)
 		end
@@ -93,7 +96,7 @@ function ClientProcess.add(Identifier: any, originId: string)
 		if not clientCallback[Identifier] then
 			clientCallback[Identifier] = {}
 		end
-		
+
 		if not queueOutRequest[1][Identifier] then
 			queueOutRequest[1][Identifier] = {}
 		end

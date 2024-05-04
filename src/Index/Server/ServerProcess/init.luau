@@ -123,9 +123,12 @@ function ServerProcess.insertRequest(Identifier: string, timeout: number, player
 	return coroutine.yield()
 end
 
-function ServerProcess.add(Identifier: string, originId: string, ratelimit: Type.rateLimitArg)
+function ServerProcess.add(Identifier: string, originId: string, conf: Type.ServerConf)
 	if not serverQueue[Identifier] then
-		RateLimit.create(originId, ratelimit.maxEntrance or 200, ratelimit.interval or 2)
+		RateLimit.create(originId, conf.rateLimit and conf.rateLimit.maxEntrance or 200, conf.rateLimit and conf.rateLimit.interval or 2)
+		if conf.logging then
+			ServerProcess.logger(Identifier, conf.logging.store, conf.logging.opt)
+		end
 		if not serverQueue[Identifier] then
 			serverQueue[Identifier] = {}
 		end
@@ -138,7 +141,7 @@ function ServerProcess.add(Identifier: string, originId: string, ratelimit: Type
 		if not serverRequestQueue[Identifier] then
 			serverRequestQueue[Identifier] = {}
 		end
-		
+
 		if not queueIn[Identifier] then
 			queueIn[Identifier] = {}
 		end
@@ -154,7 +157,7 @@ function ServerProcess.add(Identifier: string, originId: string, ratelimit: Type
 		if not queueOutRequest[2][Identifier] then
 			queueOutRequest[2][Identifier] = {}
 		end
-		
+
 		for _, player: Player in ipairs(Players:GetPlayers()) do
 			task.spawn(initializeEachPlayer, player)
 		end
