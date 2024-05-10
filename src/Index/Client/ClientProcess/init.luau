@@ -57,8 +57,14 @@ local RequestEvent = Event.Request
 
 function ClientProcess.insertQueue(Identifier: string, reliable: boolean, ...: any)
 	if not reliable then
+		if not unreliableClientQueue[Identifier] then
+			unreliableClientQueue[Identifier] = {}
+		end
 		table.insert(unreliableClientQueue[Identifier], { ... })
 		return
+	end
+	if not clientQueue[Identifier] then
+		clientQueue[Identifier] = {}
 	end
 	table.insert(clientQueue[Identifier], { ... })
 end
@@ -149,7 +155,7 @@ function ClientProcess.start()
 					task.defer(Logger.write, Identifier, `state: out -> unreliable -> {#data} data.`)
 				end
 			end
-			table.clear(data)
+			unreliableClientQueue[Identifier] = nil
 		end
 		for Identifier: string, data: any in clientQueue do
 			local callback = clientCallback[Identifier] or nil
@@ -160,55 +166,65 @@ function ClientProcess.start()
 						task.defer(Logger.write, Identifier, `state: out -> reliable -> {#data} data.`)
 					end
 				end
-				table.clear(data)
+				clientQueue[Identifier] = nil
 			end
 			if #clientRequestQueue[Identifier] > 0 then
 				for _, requestData in clientRequestQueue[Identifier] do
 					if not requestData[3] then continue end
+					if not queueOutRequest[1][Identifier] then
+						queueOutRequest[1][Identifier] = {}
+					end
 					table.insert(queueOutRequest[1][Identifier], { requestData[1], requestData[3] })
 					table.remove(requestData, #requestData)
 				end
 			end
-			if incoming_cache[Identifier] then
-				for _, packet in incoming_cache[Identifier] do
-					if not queueIn[Identifier] then continue end
-					table.insert(queueIn[Identifier], table.clone(packet))
-					table.clear(incoming_cache[Identifier])
-				end
-			end
 			if callback then
-				if #queueIn[Identifier] > 0 then
+				if incoming_cache[Identifier] then
+					for _, packet in incoming_cache[Identifier] do
+						if #packet == 0 then continue end
+						for _, fn: any in callback do
+							for i=1,#packet do
+								Spawn(fn, table.unpack(packet[i] or {}))
+							end
+						end
+						incoming_cache[Identifier] = nil
+					end
+				end
+				if queueIn[Identifier] then
 					for _, packedDatas: any in queueIn[Identifier] do
 						if #packedDatas == 0 then continue end
 						for _, fn: any in callback do
-							for i=1,math.min(1e3, #packedDatas) do
+							for i=1,#packedDatas do
 								Spawn(fn, table.unpack(packedDatas[i] or {}))
 							end
 						end
 					end
-					table.clear(queueIn[Identifier])
+					queueIn[Identifier] = nil
 				end
-				if #queueInRequest[1][Identifier] > 0 then
-					for idx, packetDatas: any in queueInRequest[1][Identifier] do
+				if queueInRequest[1][Identifier] then
+					for _, packetDatas: any in queueInRequest[1][Identifier] do
 						if #packetDatas == 0 then continue end
 						for _, fn: any in callback do
-							for i=1,math.min(1e3, #packetDatas) do
+							for i=1,#packetDatas do
 								local packetData = packetDatas[i]
 								if not packetData then continue end
 								Spawn(function()
 									local requestReturn = { fn(table.unpack(packetData[2])) }
+									if not queueOutRequest[2][Identifier] then
+										queueOutRequest[2][Identifier] = {}
+									end
 									table.insert(queueOutRequest[2][Identifier], { packetData[1],  requestReturn })
 								end)
 							end
 						end
 					end
-					table.clear(queueInRequest[1][Identifier])
+					queueInRequest[1][Identifier] = nil
 				end
-				if #queueInRequest[2][Identifier] > 0 then
+				if queueInRequest[2][Identifier] then
 					for _, packetDatas: any in queueInRequest[2][Identifier] do
 						for _, packetData in packetDatas do
 							if #packetData == 1 then continue end
-							for y=1, math.min(1e3, #clientRequestQueue[Identifier]) do
+							for y=1,#clientRequestQueue[Identifier] do
 								local clientRequest = clientRequestQueue[Identifier][y]
 								if not clientRequest then continue end
 								if clientRequest[1] == packetData[1] then
@@ -219,7 +235,7 @@ function ClientProcess.start()
 							end
 						end
 					end
-					table.clear(queueInRequest[2][Identifier])
+					queueInRequest[2][Identifier] = nil
 				end
 			end
 		end
@@ -229,7 +245,7 @@ function ClientProcess.start()
 			if logger[Identifier] then
 				task.defer(Logger.write, Identifier, `state: out -> request -> {#requestsData} data.`)
 			end
-			table.clear(queueOutRequest[1][Identifier])
+			queueOutRequest[1][Identifier] = nil
 		end
 		for Identifier: string, toReturnDatas in queueOutRequest[2] do
 			if #toReturnDatas == 0 then continue end
@@ -237,7 +253,7 @@ function ClientProcess.start()
 			if logger[Identifier] then
 				task.defer(Logger.write, Identifier, `state: out -> return request -> {#toReturnDatas} data.`)
 			end
-			table.clear(queueOutRequest[2][Identifier])
+			queueOutRequest[2][Identifier] = nil
 		end
 	end)
 	local function onClientNetworkReceive(Identifier: any, data: any)
@@ -264,8 +280,14 @@ function ClientProcess.start()
 		if not Identifier or not data then return end
 		Identifier = Buffer.convert(Identifier)
 		if action == "\1" then
+			if not queueInRequest[1][Identifier] then
+				queueInRequest[1][Identifier] = {}
+			end
 			table.insert(queueInRequest[1][Identifier], data)
 		else
+			if not queueInRequest[2][Identifier] then
+				queueInRequest[2][Identifier] = {}
+			end
 			table.insert(queueInRequest[2][Identifier], data)
 		end
 		if logger[Identifier] then
