@@ -109,6 +109,9 @@ function ServerProcess.insertRequest(Identifier: string, timeout: number, player
 	if not serverQueue[Identifier][player] then
 		serverQueue[Identifier][player] = {}
 	end
+	if not serverRequestQueue[Identifier] then
+		serverRequestQueue[Identifier] = {}
+	end
 	local yieldThread: thread, start = coroutine.running(), os.clock()
 	local cancel = task.delay(timeout, function()
 		task.spawn(yieldThread, nil)
@@ -201,30 +204,45 @@ function ServerProcess.start()
 		end
 
 		for Identifier: string, contents: { [Player]: { any } } in serverQueue do
+			
+			for player: Player, requestsData: any in queueOutRequest[1][Identifier] do
+				if #requestsData > 0 then
+					RequestEvent:FireClient(player, Buffer.revert(Identifier), "\1", requestsData)
+					if logger[Identifier] then
+						task.defer(Logger.write, Identifier, `state: out -> request -> {#requestsData} data.`)
+					end
+				end
+				queueOutRequest[1][Identifier][player] = nil
+			end
+			
+			for player: Player, toReturnDatas: any in queueOutRequest[2][Identifier] do
+				if #toReturnDatas > 0 then
+					RequestEvent:FireClient(player, Buffer.revert(Identifier), "\0", toReturnDatas)
+					if logger[Identifier] then
+						task.defer(Logger.write, Identifier, `state: out -> return request -> {#toReturnDatas} data.`)
+					end
+				end
+				queueOutRequest[2][Identifier][player] = nil
+			end
+			
 			local callback = serverCallback[Identifier] or nil
 			for player, content: any in contents do
 				if #content > 0 and queueOut[player] then
 					ReliableEvent:FireClient(player, Buffer.revert(Identifier), content)
-					serverQueue[Identifier][player] = nil
 				end
-				if #serverRequestQueue[Identifier][player] > 0 then
+				serverQueue[Identifier][player] = nil
+				
+				if serverRequestQueue[Identifier][player] then
 					for _, requestData in serverRequestQueue[Identifier][player] do
 						if not requestData[3] then continue end
 						if not queueOutRequest[1][Identifier][player] then
 							queueOutRequest[1][Identifier][player] = {}
 						end
 						table.insert(queueOutRequest[1][Identifier][player], { requestData[1], requestData[3] })
-						serverRequestQueue[Identifier][player] = nil
 					end
+					serverRequestQueue[Identifier][player] = nil
 				end
-				for player: Player, requestsData: any in queueOutRequest[1][Identifier] do
-					if #requestsData == 0 then continue end
-					RequestEvent:FireClient(player, Buffer.revert(Identifier), "\1", requestsData)
-					if logger[Identifier] then
-						task.defer(Logger.write, Identifier, `state: out -> request -> {#requestsData} data.`)
-					end
-					queueOutRequest[1][Identifier][player] = nil
-				end
+				
 				if callback then
 					local requestIn1: any = queueInRequest[1][Identifier][player]
 					local requestIn2: any = queueInRequest[2][Identifier][player]
@@ -282,14 +300,6 @@ function ServerProcess.start()
 						requestIn2 = nil
 						queueInRequest[2][Identifier][player] = nil
 					end
-				end
-				for player: Player, toReturnDatas: any in queueOutRequest[2][Identifier] do
-					if #toReturnDatas == 0 then continue end
-					RequestEvent:FireClient(player, Buffer.revert(Identifier), "\0", toReturnDatas)
-					if logger[Identifier] then
-						task.defer(Logger.write, Identifier, `state: out -> return request -> {#toReturnDatas} data.`)
-					end
-					queueOutRequest[2][Identifier][player] = nil
 				end
 			end
 		end

@@ -1,4 +1,6 @@
 --!strict
+--!native
+--!optimize 2
 local RateLimit = {}
 
 local RunService = game:GetService("RunService")

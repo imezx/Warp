@@ -70,6 +70,9 @@ function ClientProcess.insertQueue(Identifier: string, reliable: boolean, ...: a
 end
 
 function ClientProcess.insertRequest(Identifier: string, timeout: number, ...: any)
+	if not clientRequestQueue[Identifier] then
+		clientRequestQueue[Identifier] = {}
+	end
 	local yieldThread: thread, start = coroutine.running(), os.clock()
 	local cancel = task.delay(timeout, function()
 		task.spawn(yieldThread, nil)
@@ -168,15 +171,15 @@ function ClientProcess.start()
 				end
 				clientQueue[Identifier] = nil
 			end
-			if #clientRequestQueue[Identifier] > 0 then
+			if clientRequestQueue[Identifier] then
 				for _, requestData in clientRequestQueue[Identifier] do
 					if not requestData[3] then continue end
 					if not queueOutRequest[1][Identifier] then
 						queueOutRequest[1][Identifier] = {}
 					end
 					table.insert(queueOutRequest[1][Identifier], { requestData[1], requestData[3] })
-					table.remove(requestData, #requestData)
 				end
+				clientRequestQueue[Identifier] = nil
 			end
 			if callback then
 				if incoming_cache[Identifier] then
@@ -187,8 +190,8 @@ function ClientProcess.start()
 								Spawn(fn, table.unpack(packet[i] or {}))
 							end
 						end
-						incoming_cache[Identifier] = nil
 					end
+					incoming_cache[Identifier] = nil
 				end
 				if queueIn[Identifier] then
 					for _, packedDatas: any in queueIn[Identifier] do
@@ -221,16 +224,18 @@ function ClientProcess.start()
 					queueInRequest[1][Identifier] = nil
 				end
 				if queueInRequest[2][Identifier] then
-					for _, packetDatas: any in queueInRequest[2][Identifier] do
-						for _, packetData in packetDatas do
-							if #packetData == 1 then continue end
-							for y=1,#clientRequestQueue[Identifier] do
-								local clientRequest = clientRequestQueue[Identifier][y]
-								if not clientRequest then continue end
-								if clientRequest[1] == packetData[1] then
-									Spawn(clientRequest[2], table.unpack(packetData[2]))
-									table.remove(clientRequestQueue[Identifier], y)
-									break
+					if clientRequestQueue[Identifier] then
+						for _, packetDatas: any in queueInRequest[2][Identifier] do
+							for _, packetData in packetDatas do
+								if #packetData == 1 then continue end
+								for y=1,#clientRequestQueue[Identifier] do
+									local clientRequest = clientRequestQueue[Identifier][y]
+									if not clientRequest then continue end
+									if clientRequest[1] == packetData[1] then
+										Spawn(clientRequest[2], table.unpack(packetData[2]))
+										table.remove(clientRequestQueue[Identifier], y)
+										break
+									end
 								end
 							end
 						end
@@ -262,17 +267,20 @@ function ClientProcess.start()
 		if not queueIn[Identifier] then
 			queueIn[Identifier] = {}
 		end
-		if logger[Identifier] then
-			task.defer(Logger.write, Identifier, `state: in -> net -> {#data} data.`)
-		end
 		if not clientCallback[Identifier] then
 			if not incoming_cache[Identifier] then
 				incoming_cache[Identifier] = {}
 			end
 			table.insert(incoming_cache[Identifier], data)
+			if logger[Identifier] then
+				task.defer(Logger.write, Identifier, `state: cache -> net -> {#data} data.`)
+			end
 			return
 		end
 		table.insert(queueIn[Identifier], data)
+		if logger[Identifier] then
+			task.defer(Logger.write, Identifier, `state: in -> net -> {#data} data.`)
+		end
 	end
 	ReliableEvent.OnClientEvent:Connect(onClientNetworkReceive)
 	UnreliableEvent.OnClientEvent:Connect(onClientNetworkReceive)

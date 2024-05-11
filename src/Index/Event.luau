@@ -1,4 +1,6 @@
 --!strict
+--!native
+--!optimize 2
 local RunService = game:GetService("RunService")
 local Type = require(script.Parent.Type)
 
