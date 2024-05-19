@@ -53,6 +53,12 @@ function Signal:Wait(): number
 	return coroutine.yield()
 end
 
+function Signal:DeferFire(...: any): ()
+	for _, handle in self do
+		task.defer(handle.fn, ...)
+	end
+end
+
 function Signal:Fire(...: any): ()
 	for _, handle in self do
 		task.spawn(handle.fn, ...)

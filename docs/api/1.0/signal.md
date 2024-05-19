@@ -102,7 +102,23 @@ Signal1:DisconnectAll()
 
 ## `:Fire`
 
-Fire the signal.
+Fire the signal (Immediate)
+
+::: code-group
+```lua [Variable]
+(
+	...: any
+)
+```
+
+```lua [Example]
+Signal1:Fire("Hello World!")
+```
+:::
+
+## `:DeferFire`
+
+Fire the signal (Deferred)
 
 ::: code-group
 ```lua [Variable]
@@ -122,7 +138,7 @@ This uses `pcall`, which means it never error (safe-mode, sacrificed debugging),
 
 ## `:FireTo`
 
-Fire to other signal, this also use `:Fire`.
+Fire to other signal, this uses `:Fire`.
 
 ::: code-group
 ```lua [Variable]

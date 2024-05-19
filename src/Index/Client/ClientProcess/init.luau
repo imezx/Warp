@@ -19,6 +19,7 @@ local clientQueue: Type.QueueMap = {}
 local unreliableClientQueue: Type.QueueMap = {}
 local clientCallback: Type.CallbackMap = {}
 local clientRequestQueue: Type.QueueMap = {}
+local registeredIdentifier: { string } = {}
 
 local queueIn: {
 	[string]: {any}
@@ -35,11 +36,6 @@ local queueOutRequest: {
 		[string]: {
 			any
 		}
-	}
-} = {}
-local incoming_cache: {
-	[string]: {
-		any
 	}
 } = {}
 local logger: {
@@ -86,7 +82,9 @@ function ClientProcess.insertRequest(Identifier: string, timeout: number, ...: a
 end
 
 function ClientProcess.add(Identifier: any, originId: string, conf: Type.ClientConf)
-	if not clientQueue[Identifier] then
+	if not table.find(registeredIdentifier, Identifier) then
+		table.insert(registeredIdentifier, Identifier)
+		
 		if conf.logging then
 			ClientProcess.logger(Identifier, conf.logging.store, conf.logging.opt)
 		end
@@ -149,28 +147,56 @@ end
 
 function ClientProcess.start()
 	debug.setmemorycategory("Warp")
+	local clock_limit = 1/60
+	local past_clock = os.clock()
+	
 	RunService.PostSimulation:Connect(function()
-		for Identifier: string, data: any in unreliableClientQueue do
-			if #data == 0 then continue end
-			if clientRatelimit[Identifier](#data) then
-				UnreliableEvent:FireServer(Buffer.revert(Identifier), data)
-				if logger[Identifier] then
-					task.defer(Logger.write, Identifier, `state: out -> unreliable -> {#data} data.`)
-				end
-			end
-			unreliableClientQueue[Identifier] = nil
-		end
-		for Identifier: string, data: any in clientQueue do
-			local callback = clientCallback[Identifier] or nil
-			if #data > 0 then
+		if (os.clock()-past_clock) >= (clock_limit - 0.006) then -- less potential to skip frames
+			past_clock = os.clock()
+			-- Unreliable
+			for Identifier: string, data: any in unreliableClientQueue do
+				if #data == 0 then continue end
 				if clientRatelimit[Identifier](#data) then
-					ReliableEvent:FireServer(Buffer.revert(Identifier), data)
+					UnreliableEvent:FireServer(Buffer.revert(Identifier), data)
 					if logger[Identifier] then
-						task.defer(Logger.write, Identifier, `state: out -> reliable -> {#data} data.`)
+						task.defer(Logger.write, Identifier, `state: out -> unreliable -> {#data} data.`)
 					end
 				end
-				clientQueue[Identifier] = nil
+				unreliableClientQueue[Identifier] = nil
 			end
+			-- Reliable
+			for Identifier: string, data: any in clientQueue do
+				if #data > 0 then
+					if clientRatelimit[Identifier](#data) then
+						ReliableEvent:FireServer(Buffer.revert(Identifier), data)
+						if logger[Identifier] then
+							task.defer(Logger.write, Identifier, `state: out -> reliable -> {#data} data.`)
+						end
+					end
+					clientQueue[Identifier] = nil
+				end
+			end
+			-- Sent new invokes
+			for Identifier: string, requestsData in queueOutRequest[1] do
+				if #requestsData == 0 then continue end
+				RequestEvent:FireServer(Buffer.revert(Identifier), "\1", requestsData)
+				if logger[Identifier] then
+					task.defer(Logger.write, Identifier, `state: out -> request -> {#requestsData} data.`)
+				end
+				queueOutRequest[1][Identifier] = nil
+			end
+			-- Sent returning invokes
+			for Identifier: string, toReturnDatas in queueOutRequest[2] do
+				if #toReturnDatas == 0 then continue end
+				RequestEvent:FireServer(Buffer.revert(Identifier), "\0", toReturnDatas)
+				if logger[Identifier] then
+					task.defer(Logger.write, Identifier, `state: out -> return request -> {#toReturnDatas} data.`)
+				end
+				queueOutRequest[2][Identifier] = nil
+			end
+		end
+		
+		for _, Identifier: string in registeredIdentifier do
 			if clientRequestQueue[Identifier] then
 				for _, requestData in clientRequestQueue[Identifier] do
 					if not requestData[3] then continue end
@@ -179,86 +205,68 @@ function ClientProcess.start()
 					end
 					table.insert(queueOutRequest[1][Identifier], { requestData[1], requestData[3] })
 				end
-				clientRequestQueue[Identifier] = nil
 			end
-			if callback then
-				if incoming_cache[Identifier] then
-					for _, packet in incoming_cache[Identifier] do
-						if #packet == 0 then continue end
-						for _, fn: any in callback do
-							for i=1,#packet do
-								Spawn(fn, table.unpack(packet[i] or {}))
-							end
+			
+			-- Unreliable & Reliable
+			local callback = clientCallback[Identifier] or nil
+			if not callback then continue end
+			
+			if queueIn[Identifier] then
+				for _, packedDatas: any in queueIn[Identifier] do
+					if #packedDatas == 0 then continue end
+					for _, fn: any in callback do
+						for i=1,#packedDatas do
+							Spawn(fn, table.unpack(packedDatas[i] or {}))
 						end
 					end
-					incoming_cache[Identifier] = nil
 				end
-				if queueIn[Identifier] then
-					for _, packedDatas: any in queueIn[Identifier] do
-						if #packedDatas == 0 then continue end
-						for _, fn: any in callback do
-							for i=1,#packedDatas do
-								Spawn(fn, table.unpack(packedDatas[i] or {}))
-							end
+				queueIn[Identifier] = nil
+			end
+			
+			-- Return Invoke
+			if queueInRequest[1][Identifier] then
+				for _, packetDatas: any in queueInRequest[1][Identifier] do
+					if #packetDatas == 0 then continue end
+					for _, fn: any in callback do
+						for i=1,#packetDatas do
+							if not packetDatas[i] then continue end
+							local packetData1 = packetDatas[i][1]
+							local packetData2 = packetDatas[i][2]
+							Spawn(function()
+								local requestReturn = { fn(table.unpack(packetData1)) }
+								if not queueOutRequest[2][Identifier] then
+									queueOutRequest[2][Identifier] = {}
+								end
+								table.insert(queueOutRequest[2][Identifier], { packetData2,  requestReturn })
+								packetData1 = nil
+								packetData2 = nil
+							end)
 						end
 					end
-					queueIn[Identifier] = nil
 				end
-				if queueInRequest[1][Identifier] then
-					for _, packetDatas: any in queueInRequest[1][Identifier] do
-						if #packetDatas == 0 then continue end
-						for _, fn: any in callback do
-							for i=1,#packetDatas do
-								local packetData = packetDatas[i]
-								if not packetData then continue end
-								Spawn(function()
-									local requestReturn = { fn(table.unpack(packetData[2])) }
-									if not queueOutRequest[2][Identifier] then
-										queueOutRequest[2][Identifier] = {}
-									end
-									table.insert(queueOutRequest[2][Identifier], { packetData[1],  requestReturn })
-								end)
-							end
-						end
-					end
-					queueInRequest[1][Identifier] = nil
-				end
-				if queueInRequest[2][Identifier] then
-					if clientRequestQueue[Identifier] then
-						for _, packetDatas: any in queueInRequest[2][Identifier] do
-							for _, packetData in packetDatas do
-								if #packetData == 1 then continue end
-								for y=1,#clientRequestQueue[Identifier] do
-									local clientRequest = clientRequestQueue[Identifier][y]
-									if not clientRequest then continue end
-									if clientRequest[1] == packetData[1] then
-										Spawn(clientRequest[2], table.unpack(packetData[2]))
-										table.remove(clientRequestQueue[Identifier], y)
-										break
-									end
+				queueInRequest[1][Identifier] = nil
+			end
+			
+			-- Call to Invoke
+			if queueInRequest[2][Identifier] then
+				if clientRequestQueue[Identifier] then
+					for _, packetDatas: any in queueInRequest[2][Identifier] do
+						for _, packetData in packetDatas do
+							if #packetData == 1 then continue end
+							for y=1,#clientRequestQueue[Identifier] do
+								local clientRequest = clientRequestQueue[Identifier][y]
+								if not clientRequest then continue end
+								if clientRequest[1] == packetData[1] then
+									Spawn(clientRequest[2], table.unpack(packetData[2]))
+									table.remove(clientRequestQueue[Identifier], y)
+									break
 								end
 							end
 						end
 					end
-					queueInRequest[2][Identifier] = nil
 				end
+				queueInRequest[2][Identifier] = nil
 			end
-		end
-		for Identifier: string, requestsData in queueOutRequest[1] do
-			if #requestsData == 0 then continue end
-			RequestEvent:FireServer(Buffer.revert(Identifier), "\1", requestsData)
-			if logger[Identifier] then
-				task.defer(Logger.write, Identifier, `state: out -> request -> {#requestsData} data.`)
-			end
-			queueOutRequest[1][Identifier] = nil
-		end
-		for Identifier: string, toReturnDatas in queueOutRequest[2] do
-			if #toReturnDatas == 0 then continue end
-			RequestEvent:FireServer(Buffer.revert(Identifier), "\0", toReturnDatas)
-			if logger[Identifier] then
-				task.defer(Logger.write, Identifier, `state: out -> return request -> {#toReturnDatas} data.`)
-			end
-			queueOutRequest[2][Identifier] = nil
 		end
 	end)
 	local function onClientNetworkReceive(Identifier: any, data: any)
@@ -266,16 +274,6 @@ function ClientProcess.start()
 		Identifier = Buffer.convert(Identifier)
 		if not queueIn[Identifier] then
 			queueIn[Identifier] = {}
-		end
-		if not clientCallback[Identifier] then
-			if not incoming_cache[Identifier] then
-				incoming_cache[Identifier] = {}
-			end
-			table.insert(incoming_cache[Identifier], data)
-			if logger[Identifier] then
-				task.defer(Logger.write, Identifier, `state: cache -> net -> {#data} data.`)
-			end
-			return
 		end
 		table.insert(queueIn[Identifier], data)
 		if logger[Identifier] then

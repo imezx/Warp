@@ -13,8 +13,10 @@ When creating a event on Server, you can add second argument (optional) as table
 -- Server
 -- Let's make the event have ratelimit with max 50 entrance for 2 seconds.
 local Remote = Warp.Server("Remote1", {
-	maxEntrance = 50, -- maximum 50 fires.
-	interval = 2, -- 2 seconds
+	rateLimit = {
+		maxEntrance = 50, -- maximum 50 fires.
+		interval = 2, -- 2 seconds
+	}
 })
 -- Now the Event RateLimit is configured, and ready to use.
 -- No need anything to adds on client side.

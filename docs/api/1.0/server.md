@@ -36,12 +36,16 @@ Create new Warp events with array.
 ```lua [Example]
 local Events = Warp.fromServerArray({
 	["Remote1"] = {
-		maxEntrance: 50,
-		interval: 1,
+		rateLimit = {
+			maxEntrance: 50,
+			interval: 1,
+		}
 	}, -- with rateLimit configuration
 	"Remote2", -- without rateLimit configuration
 	["Remote3"] = {
-		maxEntrance: 10,
+		rateLimit = {
+			maxEntrance: 10,
+		}
 	}, -- with rateLimit configuration
 })
 

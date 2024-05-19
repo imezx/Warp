@@ -8,7 +8,7 @@
 ::: code-group
 ```toml [wally.toml]
 [dependencies]
-warp = "imezx/warp@1.0.5"
+warp = "imezx/warp@1.0.11"
 ```
 
 3. Run `wally install` in command.
