@@ -39,9 +39,13 @@ end
 
 function Signal:Disconnect(key: string)
 	self[key]:Disconnect()
+	self[key] = nil
 end
 
 function Signal:DisconnectAll(): ()
+	for _, handle in self do
+		handle:Disconnect()
+	end
 	table.clear(self)
 end
 
@@ -84,6 +88,12 @@ end
 
 function Signal:Destroy(): ()
 	self:DisconnectAll()
+	for idx: string, signal in Signals do
+		if self :: any == signal then
+			Signals[idx] = nil
+			break
+		end
+	end
 	setmetatable(self, nil)
 end
 
