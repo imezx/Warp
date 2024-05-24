@@ -276,6 +276,7 @@ function ServerProcess.start()
 							queueOutRequest[1][Identifier][player] = {}
 						end
 						table.insert(queueOutRequest[1][Identifier][player], { requestData[1], requestData[3] })
+						requestData[3] = nil
 					end
 				end
 			end
