@@ -267,6 +267,7 @@ function ServerProcess.start()
 		for _, Identifier: string in registeredIdentifier do
 			if serverRequestQueue[Identifier] then
 				for player, content in serverRequestQueue[Identifier] do
+					if #content == 0 then serverRequestQueue[Identifier][player] = nil continue end
 					for _, requestData in content do
 						if not requestData[3] then continue end
 						if not queueOutRequest[1][Identifier] then
@@ -276,6 +277,7 @@ function ServerProcess.start()
 							queueOutRequest[1][Identifier][player] = {}
 						end
 						table.insert(queueOutRequest[1][Identifier][player], { requestData[1], requestData[3] })
+						requestData[3] = nil
 					end
 				end
 			end
@@ -347,7 +349,6 @@ function ServerProcess.start()
 					end
 				end
 				queueInRequest[2][Identifier][player] = nil
-				serverRequestQueue[Identifier] = nil
 			end
 		end
 	end)
@@ -375,6 +376,8 @@ function ServerProcess.start()
 		Identifier = Buffer.convert(Identifier)
 		if not queueInRequest[1][Identifier][player] then
 			queueInRequest[1][Identifier][player] = {}
+		end
+		if not queueInRequest[2][Identifier][player] then
 			queueInRequest[2][Identifier][player] = {}
 		end
 		if not serverQueue[Identifier] then

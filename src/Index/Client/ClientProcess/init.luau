@@ -204,6 +204,7 @@ function ClientProcess.start()
 						queueOutRequest[1][Identifier] = {}
 					end
 					table.insert(queueOutRequest[1][Identifier], { requestData[1], requestData[3] })
+					requestData[3] = nil
 				end
 			end
 			
