@@ -233,11 +233,11 @@ function ClientProcess.start()
 							local packetData1 = packetDatas[i][1]
 							local packetData2 = packetDatas[i][2]
 							Spawn(function()
-								local requestReturn = { fn(table.unpack(packetData1)) }
+								local requestReturn = { fn(table.unpack(packetData2)) }
 								if not queueOutRequest[2][Identifier] then
 									queueOutRequest[2][Identifier] = {}
 								end
-								table.insert(queueOutRequest[2][Identifier], { packetData2,  requestReturn })
+								table.insert(queueOutRequest[2][Identifier], { packetData1,  requestReturn })
 								packetData1 = nil
 								packetData2 = nil
 							end)
