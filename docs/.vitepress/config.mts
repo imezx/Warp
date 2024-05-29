@@ -33,6 +33,7 @@ function side() {
             text: 'Feature',
             items: [
               { text: 'Rate Limit', link: '/api/1.0/ratelimit' },
+              { text: 'Middleware', link: '/api/1.0/middleware' },
             ]
           },
           {

@@ -1,5 +1,5 @@
 -- Warp Library (@Eternity_Devs)
--- version 1.0.11
+-- version 1.0.12
 --!strict
 --!native
 --!optimize 2

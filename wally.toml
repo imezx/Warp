@@ -1,6 +1,6 @@
 [package]
 name = "imezx/warp"
-version = "1.0.11"
+version = "1.0.12"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 license = "MIT"
