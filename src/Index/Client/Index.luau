@@ -71,8 +71,9 @@ function Client:Once(callback: (args: any) -> ())
 	
 	self.IsConnected = #self.fn > 0
 	ClientProcess.addCallback(self.id, key, function(...)
+		local _bridge = _middleware.bridge
 		self:Disconnect(key)
-		if _middleware.bridge(...) then
+		if _bridge(...) then
 			return callback(...)
 		end
 		return nil

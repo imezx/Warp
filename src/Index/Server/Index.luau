@@ -91,8 +91,9 @@ function Server:Once(callback: (plyer: Player, args: any) -> ())
 	
 	self.IsConnected = #self.fn > 0
 	ServerProcess.addCallback(self.id, key, function(...)
+		local _bridge = _middleware.bridge
 		self:Disconnect(key)
-		if _middleware.bridge(...) then
+		if _bridge(...) then
 			return callback(...)
 		end
 		return nil
