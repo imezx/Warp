@@ -3,6 +3,7 @@
 --!optimize 2
 local Signal = {}
 Signal.__index = Signal
+Signal.ClassName = "Signal"
 
 local DedicatedSignal = require(script.Dedicated)
 
@@ -22,15 +23,15 @@ function Signal.new(Identifier: string)
 	return Signals[Identifier]
 end
 
-function Signal:Connect(fn: (...any) -> ()): string
-	local key = tostring(Key())
+function Signal:Connect(fn: (...any) -> (), optKey: string?): string
+	local key: typeof(Signal) = optKey or tostring(Key()) :: any
 	self[key] = DedicatedSignal(self, fn)
-	return key
+	return key :: any
 end
 
 function Signal:Once(fn: (...any) -> ()): string
 	local key: string
-	key = self:Connect(function(...)
+	key = self:Connect(function(...: any)
 		self:Disconnect(key)
 		task.spawn(fn, ...)
 	end)
@@ -38,19 +39,17 @@ function Signal:Once(fn: (...any) -> ()): string
 end
 
 function Signal:Disconnect(key: string)
+	if not self[key] then return end
 	self[key]:Disconnect()
 	self[key] = nil
 end
 
 function Signal:DisconnectAll(): ()
-	for _, handle in self do
-		handle:Disconnect()
-	end
 	table.clear(self)
 end
 
 function Signal:Wait(): number
-	local thread, t = coroutine.running(), os.clock()
+	local t, thread = os.clock(), coroutine.running()
 	self:Once(function()
 		task.spawn(thread, os.clock()-t)
 	end)
@@ -88,12 +87,6 @@ end
 
 function Signal:Destroy(): ()
 	self:DisconnectAll()
-	for idx: string, signal in Signals do
-		if self :: any == signal then
-			Signals[idx] = nil
-			break
-		end
-	end
 	setmetatable(self, nil)
 end
 

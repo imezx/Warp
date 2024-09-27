@@ -1,5 +1,4 @@
 --!strict
---!native
 --!optimize 2
 local Logger = {}
 local Logs: {
@@ -31,4 +30,8 @@ function Logger.read(Identifier: string)
 	return Logs[Identifier]
 end
 
-return Logger
+function Logger.clear(Identifier: string)
+	Logs[Identifier] = nil
+end
+
+return Logger :: typeof(Logger)

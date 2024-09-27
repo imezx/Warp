@@ -84,7 +84,7 @@ end
 function ClientProcess.add(Identifier: any, originId: string, conf: Type.ClientConf)
 	if not table.find(registeredIdentifier, Identifier) then
 		table.insert(registeredIdentifier, Identifier)
-		
+
 		if conf.logging then
 			ClientProcess.logger(Identifier, conf.logging.store, conf.logging.opt)
 		end
@@ -122,6 +122,22 @@ function ClientProcess.add(Identifier: any, originId: string, conf: Type.ClientC
 	end
 end
 
+function ClientProcess.remove(Identifier: string)
+	if not table.find(registeredIdentifier, Identifier) then return end
+	table.remove(registeredIdentifier, table.find(registeredIdentifier, Identifier))
+	clientQueue[Identifier] = nil
+	unreliableClientQueue[Identifier] = nil
+	clientRequestQueue[Identifier] = nil
+	clientCallback[Identifier] = nil
+	clientRatelimit[Identifier] = nil
+	queueOutRequest[1][Identifier] = nil
+	queueOutRequest[2][Identifier] = nil
+	queueInRequest[1][Identifier] = nil
+	queueInRequest[2][Identifier] = nil
+	queueIn[Identifier] = nil
+	Logger.clear(Identifier)
+end
+
 function ClientProcess.logger(Identifier: string, store: boolean, log: boolean)
 	logger[Identifier] = store
 	Logger.write(Identifier, `state: change -> {log == true and "enabled" or "disabled"} logger.`, log)
@@ -147,55 +163,49 @@ end
 
 function ClientProcess.start()
 	debug.setmemorycategory("Warp")
-	local clock_limit = 1/60
-	local past_clock = os.clock()
-	
 	RunService.PostSimulation:Connect(function()
-		if (os.clock()-past_clock) >= (clock_limit - 0.006) then -- less potential to skip frames
-			past_clock = os.clock()
-			-- Unreliable
-			for Identifier: string, data: any in unreliableClientQueue do
-				if #data == 0 then continue end
+		-- Unreliable
+		for Identifier: string, data: any in unreliableClientQueue do
+			if #data == 0 then continue end
+			if clientRatelimit[Identifier](#data) then
+				UnreliableEvent:FireServer(Buffer.revert(Identifier), data)
+				if logger[Identifier] then
+					task.defer(Logger.write, Identifier, `state: out -> unreliable -> {#data} data.`)
+				end
+			end
+			unreliableClientQueue[Identifier] = nil
+		end
+		-- Reliable
+		for Identifier: string, data: any in clientQueue do
+			if #data > 0 then
 				if clientRatelimit[Identifier](#data) then
-					UnreliableEvent:FireServer(Buffer.revert(Identifier), data)
+					ReliableEvent:FireServer(Buffer.revert(Identifier), data)
 					if logger[Identifier] then
-						task.defer(Logger.write, Identifier, `state: out -> unreliable -> {#data} data.`)
+						task.defer(Logger.write, Identifier, `state: out -> reliable -> {#data} data.`)
 					end
 				end
-				unreliableClientQueue[Identifier] = nil
-			end
-			-- Reliable
-			for Identifier: string, data: any in clientQueue do
-				if #data > 0 then
-					if clientRatelimit[Identifier](#data) then
-						ReliableEvent:FireServer(Buffer.revert(Identifier), data)
-						if logger[Identifier] then
-							task.defer(Logger.write, Identifier, `state: out -> reliable -> {#data} data.`)
-						end
-					end
-					clientQueue[Identifier] = nil
-				end
-			end
-			-- Sent new invokes
-			for Identifier: string, requestsData in queueOutRequest[1] do
-				if #requestsData == 0 then continue end
-				RequestEvent:FireServer(Buffer.revert(Identifier), "\1", requestsData)
-				if logger[Identifier] then
-					task.defer(Logger.write, Identifier, `state: out -> request -> {#requestsData} data.`)
-				end
-				queueOutRequest[1][Identifier] = nil
-			end
-			-- Sent returning invokes
-			for Identifier: string, toReturnDatas in queueOutRequest[2] do
-				if #toReturnDatas == 0 then continue end
-				RequestEvent:FireServer(Buffer.revert(Identifier), "\0", toReturnDatas)
-				if logger[Identifier] then
-					task.defer(Logger.write, Identifier, `state: out -> return request -> {#toReturnDatas} data.`)
-				end
-				queueOutRequest[2][Identifier] = nil
+				clientQueue[Identifier] = nil
 			end
 		end
-		
+		-- Sent new invokes
+		for Identifier: string, requestsData in queueOutRequest[1] do
+			if #requestsData == 0 then continue end
+			RequestEvent:FireServer(Buffer.revert(Identifier), "\1", requestsData)
+			if logger[Identifier] then
+				task.defer(Logger.write, Identifier, `state: out -> request -> {#requestsData} data.`)
+			end
+			queueOutRequest[1][Identifier] = nil
+		end
+		-- Sent returning invokes
+		for Identifier: string, toReturnDatas in queueOutRequest[2] do
+			if #toReturnDatas == 0 then continue end
+			RequestEvent:FireServer(Buffer.revert(Identifier), "\0", toReturnDatas)
+			if logger[Identifier] then
+				task.defer(Logger.write, Identifier, `state: out -> return request -> {#toReturnDatas} data.`)
+			end
+			queueOutRequest[2][Identifier] = nil
+		end
+
 		for _, Identifier: string in registeredIdentifier do
 			if clientRequestQueue[Identifier] then
 				for _, requestData in clientRequestQueue[Identifier] do
@@ -207,11 +217,11 @@ function ClientProcess.start()
 					requestData[3] = nil
 				end
 			end
-			
+
 			-- Unreliable & Reliable
 			local callback = clientCallback[Identifier] or nil
 			if not callback then continue end
-			
+
 			if queueIn[Identifier] then
 				for _, packedDatas: any in queueIn[Identifier] do
 					if #packedDatas == 0 then continue end
@@ -223,7 +233,7 @@ function ClientProcess.start()
 				end
 				queueIn[Identifier] = nil
 			end
-			
+
 			-- Return Invoke
 			if queueInRequest[1][Identifier] then
 				for _, packetDatas: any in queueInRequest[1][Identifier] do
@@ -247,7 +257,7 @@ function ClientProcess.start()
 				end
 				queueInRequest[1][Identifier] = nil
 			end
-			
+
 			-- Call to Invoke
 			if queueInRequest[2][Identifier] then
 				if clientRequestQueue[Identifier] then

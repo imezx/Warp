@@ -13,16 +13,14 @@ local Assert = require(Util.Assert)
 local Key = require(Util.Key)
 local Serdes = require(Util.Serdes)
 local Buffer = require(Util.Buffer)
-local Middleware = require(Util.Middleware)
 
 function Client.new(Identifier: string, conf: Type.ClientConf?)
 	local self = setmetatable({}, Client)
 
 	self._buffer = Buffer.new()
-	self._buffer:wu8(Serdes(Identifier, conf and conf.yieldWait))
+	self._buffer:wu8(Serdes.increment(Identifier, conf and conf.yieldWait))
 	self.id = Buffer.convert(self._buffer:build())
 	self.fn = {}
-	self.middleware = {}
 	self._conf = table.freeze(conf or {})
 	self.IsConnected = false
 
@@ -45,39 +43,23 @@ function Client:Invoke(timeout: number, ...: any): any
 	return ClientProcess.insertRequest(self.id, timeout, ...)
 end
 
-function Client:Connect(callback: (args: any) -> ())
+function Client:Connect(callback: (args: any) -> ()): string
 	local key = tostring(Key())
-	local _middleware = Middleware(key)
-	
 	table.insert(self.fn, key)
-	self.middleware[key] = _middleware
-	
 	self.IsConnected = #self.fn > 0
-	ClientProcess.addCallback(self.id, key, function(...)
-		if _middleware.bridge(...) then
-			return callback(...)
-		end
-		return nil
-	end)
-	return _middleware
+	ClientProcess.addCallback(self.id, key, callback)
+	return key
 end
 
-function Client:Once(callback: (args: any) -> ())
+function Client:Once(callback: (args: any) -> ()): string
 	local key = tostring(Key())
-	local _middleware = Middleware(key)
-	
 	table.insert(self.fn, key)
-	self.middleware[key] = _middleware
-	
 	self.IsConnected = #self.fn > 0
-	ClientProcess.addCallback(self.id, key, function(...)
+	ClientProcess.addCallback(self.id, key, function(...: any?)
 		self:Disconnect(key)
-		if _middleware.bridge(...) then
-			return callback(...)
-		end
-		return nil
+		task.spawn(callback, ...)
 	end)
-	return _middleware
+	return key
 end
 
 function Client:Wait()
@@ -99,14 +81,14 @@ function Client:Disconnect(key: string)
 	ClientProcess.removeCallback(self.id, key)
 	table.remove(self.fn, table.find(self.fn, key))
 	self.IsConnected = #self.fn > 0
-	if self.middleware[key] then
-		self.middleware[key]:destroy()
-		self.middleware[key] = nil
-	end
 end
 
 function Client:Destroy()
 	self:DisconnectAll()
+	self._buffer:remove()
+	ClientProcess.remove(self.id)
+	Serdes.decrement()
+	table.clear(self)
 	setmetatable(self, nil)
 end
 

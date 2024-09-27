@@ -13,16 +13,14 @@ local Assert = require(Util.Assert)
 local Key = require(Util.Key)
 local Serdes = require(Util.Serdes)
 local Buffer = require(Util.Buffer)
-local Middleware = require(Util.Middleware)
 
 function Server.new(Identifier: string, conf: Type.ServerConf?)
 	local self = setmetatable({}, Server)
 
 	self._buffer = Buffer.new()
-	self._buffer:wu8(Serdes(Identifier))
+	self._buffer:wu8(Serdes.increment(Identifier))
 	self.id = Buffer.convert(self._buffer:build())
 	self.fn = {}
-	self.middleware = {}
 	self._conf = table.freeze(conf or {})
 	self.IsConnected = false
 
@@ -65,39 +63,23 @@ function Server:Invoke(timeout: number, player: Player, ...: any): any
 	return ServerProcess.insertRequest(self.id, timeout, player, ...)
 end
 
-function Server:Connect(callback: (plyer: Player, args: any) -> ())
+function Server:Connect(callback: (plyer: Player, args: any) -> ()): string
 	local key = tostring(Key())
-	local _middleware = Middleware(key)
-	
 	table.insert(self.fn, key)
-	self.middleware[key] = _middleware
-	
+	ServerProcess.addCallback(self.id, key, callback)
 	self.IsConnected = #self.fn > 0
-	ServerProcess.addCallback(self.id, key, function(...)
-		if _middleware.bridge(...) then
-			return callback(...)
-		end
-		return nil
-	end)
-	return _middleware
+	return key
 end
 
-function Server:Once(callback: (plyer: Player, args: any) -> ())
+function Server:Once(callback: (plyer: Player, args: any) -> ()): string
 	local key = tostring(Key())
-	local _middleware = Middleware(key)
-	
 	table.insert(self.fn, key)
-	self.middleware[key] = _middleware
-	
 	self.IsConnected = #self.fn > 0
-	ServerProcess.addCallback(self.id, key, function(...)
+	ServerProcess.addCallback(self.id, key, function(player: Player, ...: any?)
 		self:Disconnect(key)
-		if _middleware.bridge(...) then
-			return callback(...)
-		end
-		return nil
+		task.spawn(callback, player, ...)
 	end)
-	return _middleware
+	return key
 end
 
 function Server:Wait()
@@ -119,15 +101,15 @@ function Server:Disconnect(key: string): boolean
 	ServerProcess.removeCallback(self.id, key)
 	table.remove(self.fn, table.find(self.fn, key))
 	self.IsConnected = #self.fn > 0
-	if self.middleware[key] then
-		self.middleware[key]:destroy()
-		self.middleware[key] = nil
-	end
 	return table.find(self.fn, key) == nil
 end
 
 function Server:Destroy()
 	self:DisconnectAll()
+	self._buffer:remove()
+	ServerProcess.remove(self.id)
+	Serdes.decrement()
+	table.clear(self)
 	setmetatable(self, nil)
 end
 

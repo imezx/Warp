@@ -12,6 +12,7 @@ function Dedicated.new(signal: any, handler: (...any) -> ())
 end
 
 function Dedicated:Disconnect()
+	table.clear(self)
 	setmetatable(self, nil)
 end
 

@@ -142,9 +142,9 @@ end
 function ServerProcess.add(Identifier: string, originId: string, conf: Type.ServerConf)
 	if not table.find(registeredIdentifier, Identifier) then
 		table.insert(registeredIdentifier, Identifier)
-		
+
 		RateLimit.create(originId, conf.rateLimit and conf.rateLimit.maxEntrance or 200, conf.rateLimit and conf.rateLimit.interval or 2)
-		
+
 		if conf.logging then
 			ServerProcess.logger(Identifier, conf.logging.store, conf.logging.opt)
 		end
@@ -183,6 +183,21 @@ function ServerProcess.add(Identifier: string, originId: string, conf: Type.Serv
 	end
 end
 
+function ServerProcess.remove(Identifier: string)
+	if not table.find(registeredIdentifier, Identifier) then return end
+	table.remove(registeredIdentifier, table.find(registeredIdentifier, Identifier))
+	serverQueue[Identifier] = nil
+	serverRequestQueue[Identifier] = nil
+	serverCallback[Identifier] = nil
+	unreliableServerQueue[Identifier] = nil
+	queueIn[Identifier] = nil
+	queueInRequest[1][Identifier] = nil
+	queueInRequest[2][Identifier] = nil
+	queueOutRequest[1][Identifier] = nil
+	queueOutRequest[2][Identifier] = nil
+	Logger.clear(Identifier)
+end
+
 function ServerProcess.logger(Identifier: string, store: boolean, log: boolean)
 	logger[Identifier] = store
 	Logger.write(Identifier, `state: change -> {log == true and "enabled" or "disabled"} logger.`, log)
@@ -208,60 +223,54 @@ end
 
 function ServerProcess.start()
 	debug.setmemorycategory("Warp")
-	local clock_limit = 1/60
-	local past_clock = os.clock()
-	
 	RunService.PostSimulation:Connect(function()
-		if (os.clock()-past_clock) >= (clock_limit - 0.006) then -- less potential to skip frames
-			past_clock = os.clock()
-			-- Unreliable
-			for Identifier: string, players in unreliableServerQueue do
-				for player: Player, content: any in players do
-					if #content == 0 then continue end
-					UnreliableEvent:FireClient(player, Buffer.revert(Identifier), content)
+		-- Unreliable
+		for Identifier: string, players in unreliableServerQueue do
+			for player: Player, content: any in players do
+				if #content == 0 then continue end
+				UnreliableEvent:FireClient(player, Buffer.revert(Identifier), content)
+				if logger[Identifier] then
+					task.defer(Logger.write, Identifier, `state: out -> unreliable -> {#content} data.`)
+				end
+				unreliableServerQueue[Identifier][player] = nil
+			end
+			unreliableServerQueue[Identifier] = nil
+		end
+		-- Reliable
+		for Identifier: string, contents: { [Player]: { any } } in serverQueue do
+			for player, content: any in contents do
+				if #content > 0 and queueOut[player] then
+					ReliableEvent:FireClient(player, Buffer.revert(Identifier), content)
+				end
+				serverQueue[Identifier][player] = nil
+			end
+			serverQueue[Identifier] = nil
+		end
+		-- Sent new invokes
+		for Identifier: string, contents in queueOutRequest[1] do
+			for player: Player, requestsData: any in contents do
+				if #requestsData > 0 then
+					RequestEvent:FireClient(player, Buffer.revert(Identifier), "\1", requestsData)
 					if logger[Identifier] then
-						task.defer(Logger.write, Identifier, `state: out -> unreliable -> {#content} data.`)
+						task.defer(Logger.write, Identifier, `state: out -> request -> {#requestsData} data.`)
 					end
-					unreliableServerQueue[Identifier][player] = nil
 				end
-				unreliableServerQueue[Identifier] = nil
+				queueOutRequest[1][Identifier][player] = nil
 			end
-			-- Reliable
-			for Identifier: string, contents: { [Player]: { any } } in serverQueue do
-				for player, content: any in contents do
-					if #content > 0 and queueOut[player] then
-						ReliableEvent:FireClient(player, Buffer.revert(Identifier), content)
+			queueOutRequest[1][Identifier] = nil
+		end
+		-- Sent returning invokes
+		for Identifier: string, contents in queueOutRequest[2] do
+			for player: Player, toReturnDatas: any in contents do
+				if #toReturnDatas > 0 then
+					RequestEvent:FireClient(player, Buffer.revert(Identifier), "\0", toReturnDatas)
+					if logger[Identifier] then
+						task.defer(Logger.write, Identifier, `state: out -> return request -> {#toReturnDatas} data.`)
 					end
-					serverQueue[Identifier][player] = nil
 				end
-				serverQueue[Identifier] = nil
+				queueOutRequest[2][Identifier][player] = nil
 			end
-			-- Sent new invokes
-			for Identifier: string, contents in queueOutRequest[1] do
-				for player: Player, requestsData: any in contents do
-					if #requestsData > 0 then
-						RequestEvent:FireClient(player, Buffer.revert(Identifier), "\1", requestsData)
-						if logger[Identifier] then
-							task.defer(Logger.write, Identifier, `state: out -> request -> {#requestsData} data.`)
-						end
-					end
-					queueOutRequest[1][Identifier][player] = nil
-				end
-				queueOutRequest[1][Identifier] = nil
-			end
-			-- Sent returning invokes
-			for Identifier: string, contents in queueOutRequest[2] do
-				for player: Player, toReturnDatas: any in contents do
-					if #toReturnDatas > 0 then
-						RequestEvent:FireClient(player, Buffer.revert(Identifier), "\0", toReturnDatas)
-						if logger[Identifier] then
-							task.defer(Logger.write, Identifier, `state: out -> return request -> {#toReturnDatas} data.`)
-						end
-					end
-					queueOutRequest[2][Identifier][player] = nil
-				end
-				queueOutRequest[2][Identifier] = nil
-			end
+			queueOutRequest[2][Identifier] = nil
 		end
 		
 		for _, Identifier: string in registeredIdentifier do
@@ -281,10 +290,10 @@ function ServerProcess.start()
 					end
 				end
 			end
-			
+
 			local callback = serverCallback[Identifier] or nil
 			if not callback then continue end
-			
+
 			-- Unreliable & Reliable
 			for player, content in queueIn[Identifier] do
 				if not callback then break end
@@ -299,7 +308,7 @@ function ServerProcess.start()
 				end
 				queueIn[Identifier][player] = nil
 			end
-			
+
 			-- Return Invoke
 			for player, content in queueInRequest[1][Identifier] do
 				if not callback then break end
@@ -328,7 +337,7 @@ function ServerProcess.start()
 				end
 				queueInRequest[1][Identifier][player] = nil
 			end
-			
+
 			-- Call to Invoke
 			for player, content in queueInRequest[2][Identifier] do
 				if not callback then break end

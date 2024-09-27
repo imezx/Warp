@@ -128,7 +128,7 @@ function DedicatedBuffer.new()
 end
 
 function DedicatedBuffer.remove(self: any)
-	self:flush()
+	table.clear(self)
 	setmetatable(self, nil)
 end
 
