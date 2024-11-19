@@ -24,15 +24,10 @@ function Client.new(Identifier: string, conf: Type.ClientConf?)
 	self._conf = table.freeze(conf or {})
 	self.IsConnected = false
 
-	ClientProcess.add(self.id, Identifier, conf or { yieldWait = 10, logging = { store = false, opt = false } })
+	ClientProcess.add(self.id, Identifier, conf or { yieldWait = 10 })
 	self._buffer:remove()
 
 	return self
-end
-
-function Client:logs()
-	Assert(self._conf.logging, "[Client]: Event is not configured with logging.")
-	return ClientProcess.getlogs(self.id)
 end
 
 function Client:Fire(reliable: boolean,...: any)

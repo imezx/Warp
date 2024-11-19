@@ -12,18 +12,14 @@ local Spawn = require(Util.Spawn)
 local Key = require(Util.Key)
 local RateLimit = require(Util.RateLimit)
 local Buffer = require(Util.Buffer)
-local Logger = require(script.Logger)
 
 local clientRatelimit: Type.StoredRatelimit = {}
 local clientQueue: Type.QueueMap = {}
 local unreliableClientQueue: Type.QueueMap = {}
 local clientCallback: Type.CallbackMap = {}
 local clientRequestQueue: Type.QueueMap = {}
-local registeredIdentifier: { string } = {}
+local registeredIdentifier: { [string]: boolean } = {}
 
-local queueIn: {
-	[string]: {any}
-} = {}
 local queueInRequest: {
 	[number]: {
 		[string]: {
@@ -37,9 +33,6 @@ local queueOutRequest: {
 			any
 		}
 	}
-} = {}
-local logger: {
-	[string]: boolean
 } = {}
 
 queueInRequest[1] = {}
@@ -82,12 +75,9 @@ function ClientProcess.insertRequest(Identifier: string, timeout: number, ...: a
 end
 
 function ClientProcess.add(Identifier: any, originId: string, conf: Type.ClientConf)
-	if not table.find(registeredIdentifier, Identifier) then
-		table.insert(registeredIdentifier, Identifier)
+	if not registeredIdentifier[Identifier] then
+		registeredIdentifier[Identifier] = true
 
-		if conf.logging then
-			ClientProcess.logger(Identifier, conf.logging.store, conf.logging.opt)
-		end
 		if not clientRatelimit[Identifier] then
 			clientRatelimit[Identifier] = RateLimit.create(originId)
 		end
@@ -116,15 +106,12 @@ function ClientProcess.add(Identifier: any, originId: string, conf: Type.ClientC
 		if not queueInRequest[2][Identifier] then
 			queueInRequest[2][Identifier] = {}
 		end
-		if not queueIn[Identifier] then
-			queueIn[Identifier] = {}
-		end
 	end
 end
 
 function ClientProcess.remove(Identifier: string)
-	if not table.find(registeredIdentifier, Identifier) then return end
-	table.remove(registeredIdentifier, table.find(registeredIdentifier, Identifier))
+	if not registeredIdentifier[Identifier] then return end
+	registeredIdentifier[Identifier] = nil
 	clientQueue[Identifier] = nil
 	unreliableClientQueue[Identifier] = nil
 	clientRequestQueue[Identifier] = nil
@@ -134,31 +121,14 @@ function ClientProcess.remove(Identifier: string)
 	queueOutRequest[2][Identifier] = nil
 	queueInRequest[1][Identifier] = nil
 	queueInRequest[2][Identifier] = nil
-	queueIn[Identifier] = nil
-	Logger.clear(Identifier)
-end
-
-function ClientProcess.logger(Identifier: string, store: boolean, log: boolean)
-	logger[Identifier] = store
-	Logger.write(Identifier, `state: change -> {log == true and "enabled" or "disabled"} logger.`, log)
-end
-
-function ClientProcess.getlogs(Identifier: string)
-	return Logger.read(Identifier)
 end
 
 function ClientProcess.addCallback(Identifier: string, key: string, callback)
 	clientCallback[Identifier][key] = callback
-	if logger[Identifier] then
-		task.defer(Logger.write, Identifier, `state: change -> new callback added.`)
-	end
 end
 
 function ClientProcess.removeCallback(Identifier: string, key: string)
 	clientCallback[Identifier][key] = nil
-	if logger[Identifier] then
-		task.defer(Logger.write, Identifier, `state: change -> removed a callback.`)
-	end
 end
 
 function ClientProcess.start()
@@ -168,9 +138,8 @@ function ClientProcess.start()
 		for Identifier: string, data: any in unreliableClientQueue do
 			if #data == 0 then continue end
 			if clientRatelimit[Identifier](#data) then
-				UnreliableEvent:FireServer(Buffer.revert(Identifier), data)
-				if logger[Identifier] then
-					task.defer(Logger.write, Identifier, `state: out -> unreliable -> {#data} data.`)
+				for _, unpacked in data do
+					UnreliableEvent:FireServer(Buffer.write(unpacked))
 				end
 			end
 			unreliableClientQueue[Identifier] = nil
@@ -179,9 +148,8 @@ function ClientProcess.start()
 		for Identifier: string, data: any in clientQueue do
 			if #data > 0 then
 				if clientRatelimit[Identifier](#data) then
-					ReliableEvent:FireServer(Buffer.revert(Identifier), data)
-					if logger[Identifier] then
-						task.defer(Logger.write, Identifier, `state: out -> reliable -> {#data} data.`)
+					for _, unpacked in data do
+						ReliableEvent:FireServer(Buffer.write(unpacked))
 					end
 				end
 				clientQueue[Identifier] = nil
@@ -191,22 +159,16 @@ function ClientProcess.start()
 		for Identifier: string, requestsData in queueOutRequest[1] do
 			if #requestsData == 0 then continue end
 			RequestEvent:FireServer(Buffer.revert(Identifier), "\1", requestsData)
-			if logger[Identifier] then
-				task.defer(Logger.write, Identifier, `state: out -> request -> {#requestsData} data.`)
-			end
 			queueOutRequest[1][Identifier] = nil
 		end
 		-- Sent returning invokes
 		for Identifier: string, toReturnDatas in queueOutRequest[2] do
 			if #toReturnDatas == 0 then continue end
 			RequestEvent:FireServer(Buffer.revert(Identifier), "\0", toReturnDatas)
-			if logger[Identifier] then
-				task.defer(Logger.write, Identifier, `state: out -> return request -> {#toReturnDatas} data.`)
-			end
 			queueOutRequest[2][Identifier] = nil
 		end
 
-		for _, Identifier: string in registeredIdentifier do
+		for Identifier: string in registeredIdentifier do
 			if clientRequestQueue[Identifier] then
 				for _, requestData in clientRequestQueue[Identifier] do
 					if not requestData[3] then continue end
@@ -221,18 +183,6 @@ function ClientProcess.start()
 			-- Unreliable & Reliable
 			local callback = clientCallback[Identifier] or nil
 			if not callback then continue end
-
-			if queueIn[Identifier] then
-				for _, packedDatas: any in queueIn[Identifier] do
-					if #packedDatas == 0 then continue end
-					for _, fn: any in callback do
-						for i=1,#packedDatas do
-							Spawn(fn, table.unpack(packedDatas[i] or {}))
-						end
-					end
-				end
-				queueIn[Identifier] = nil
-			end
 
 			-- Return Invoke
 			if queueInRequest[1][Identifier] then
@@ -280,15 +230,16 @@ function ClientProcess.start()
 			end
 		end
 	end)
-	local function onClientNetworkReceive(Identifier: any, data: any)
-		if not Identifier or not data then return end
-		Identifier = Buffer.convert(Identifier)
-		if not queueIn[Identifier] then
-			queueIn[Identifier] = {}
-		end
-		table.insert(queueIn[Identifier], data)
-		if logger[Identifier] then
-			task.defer(Logger.write, Identifier, `state: in -> net -> {#data} data.`)
+	local function onClientNetworkReceive(data: buffer)
+		if not data then return end
+		local read = Buffer.read(data)
+		if not read then return end
+		for Identifier: string in registeredIdentifier do
+			local callback = clientCallback[Identifier] or nil
+			if not callback then continue end
+			for _, fn: any in callback do
+				Spawn(fn, table.unpack(read))
+			end
 		end
 	end
 	ReliableEvent.OnClientEvent:Connect(onClientNetworkReceive)
@@ -306,9 +257,6 @@ function ClientProcess.start()
 				queueInRequest[2][Identifier] = {}
 			end
 			table.insert(queueInRequest[2][Identifier], data)
-		end
-		if logger[Identifier] then
-			task.defer(Logger.write, Identifier, `state: in -> request -> {#data} data.`)
 		end
 	end)
 end

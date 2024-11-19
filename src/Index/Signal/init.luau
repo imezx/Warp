@@ -3,7 +3,6 @@
 --!optimize 2
 local Signal = {}
 Signal.__index = Signal
-Signal.ClassName = "Signal"
 
 local DedicatedSignal = require(script.Dedicated)
 

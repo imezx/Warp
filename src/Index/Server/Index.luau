@@ -30,11 +30,6 @@ function Server.new(Identifier: string, conf: Type.ServerConf?)
 	return self
 end
 
-function Server:logs()
-	Assert(self._conf.logging, "[Server]: Event is not configured with logging.")
-	return ServerProcess.getlogs(self.id)
-end
-
 function Server:Fire(reliable: boolean, player: Player, ...: any)
 	ServerProcess.insertQueue(self.id, reliable, player, ...)
 end

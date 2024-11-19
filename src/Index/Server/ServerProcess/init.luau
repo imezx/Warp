@@ -13,22 +13,16 @@ local Spawn = require(Util.Spawn)
 local Key = require(Util.Key)
 local RateLimit = require(Util.RateLimit)
 local Buffer = require(Util.Buffer)
-local Logger = require(script.Logger)
 
 local serverQueue: Type.QueueMap = {}
 local unreliableServerQueue: Type.QueueMap = {}
 local serverCallback: Type.CallbackMap = {}
 local serverRequestQueue: Type.QueueMap = {}
-local registeredIdentifier: { string } = {}
+local registeredIdentifier: { [string]: boolean } = {}
 
 local queueOut: {
 	[Player]: {
 		[string]: {any},
-	}
-} = {}
-local queueIn: {
-	[string]: {
-		[Player]: {any},
 	}
 } = {}
 local queueInRequest: {
@@ -44,12 +38,6 @@ local queueOutRequest: {
 			[Player]: {any}
 		}
 	}
-} = {}
-local logger: {
-	[string]: boolean
-} = {}
-local players: {
-	Player
 } = {}
 
 queueInRequest[1] = {}
@@ -77,9 +65,6 @@ local function initializeEachPlayer(player: Player)
 		end
 		if not serverRequestQueue[Identifier][player] then
 			serverRequestQueue[Identifier][player] = {}
-		end
-		if not queueIn[Identifier][player] then
-			queueIn[Identifier][player] = {}
 		end
 		if not queueOutRequest[1][Identifier] then
 			queueOutRequest[1][Identifier] = {}
@@ -140,14 +125,11 @@ function ServerProcess.insertRequest(Identifier: string, timeout: number, player
 end
 
 function ServerProcess.add(Identifier: string, originId: string, conf: Type.ServerConf)
-	if not table.find(registeredIdentifier, Identifier) then
-		table.insert(registeredIdentifier, Identifier)
+	if not registeredIdentifier[Identifier] then
+		registeredIdentifier[Identifier] = true
 
 		RateLimit.create(originId, conf.rateLimit and conf.rateLimit.maxEntrance or 200, conf.rateLimit and conf.rateLimit.interval or 2)
 
-		if conf.logging then
-			ServerProcess.logger(Identifier, conf.logging.store, conf.logging.opt)
-		end
 		if not serverQueue[Identifier] then
 			serverQueue[Identifier] = {}
 		end
@@ -161,9 +143,6 @@ function ServerProcess.add(Identifier: string, originId: string, conf: Type.Serv
 			unreliableServerQueue[Identifier] = {}
 		end
 
-		if not queueIn[Identifier] then
-			queueIn[Identifier] = {}
-		end
 		if not queueInRequest[1][Identifier] then
 			queueInRequest[1][Identifier] = {}
 		end
@@ -184,41 +163,24 @@ function ServerProcess.add(Identifier: string, originId: string, conf: Type.Serv
 end
 
 function ServerProcess.remove(Identifier: string)
-	if not table.find(registeredIdentifier, Identifier) then return end
-	table.remove(registeredIdentifier, table.find(registeredIdentifier, Identifier))
+	if not registeredIdentifier[Identifier] then return end
+	registeredIdentifier[Identifier] = nil
 	serverQueue[Identifier] = nil
 	serverRequestQueue[Identifier] = nil
 	serverCallback[Identifier] = nil
 	unreliableServerQueue[Identifier] = nil
-	queueIn[Identifier] = nil
 	queueInRequest[1][Identifier] = nil
 	queueInRequest[2][Identifier] = nil
 	queueOutRequest[1][Identifier] = nil
 	queueOutRequest[2][Identifier] = nil
-	Logger.clear(Identifier)
-end
-
-function ServerProcess.logger(Identifier: string, store: boolean, log: boolean)
-	logger[Identifier] = store
-	Logger.write(Identifier, `state: change -> {log == true and "enabled" or "disabled"} logger.`, log)
-end
-
-function ServerProcess.getlogs(Identifier: string)
-	return Logger.read(Identifier)
 end
 
 function ServerProcess.addCallback(Identifier: string, key: string, callback)
 	serverCallback[Identifier][key] = callback
-	if logger[Identifier] then
-		task.defer(Logger.write, Identifier, `state: change -> new callback added.`)
-	end
 end
 
 function ServerProcess.removeCallback(Identifier: string, key: string)
 	serverCallback[Identifier][key] = nil
-	if logger[Identifier] then
-		task.defer(Logger.write, Identifier, `state: change -> removed a callback.`)
-	end
 end
 
 function ServerProcess.start()
@@ -228,9 +190,8 @@ function ServerProcess.start()
 		for Identifier: string, players in unreliableServerQueue do
 			for player: Player, content: any in players do
 				if #content == 0 then continue end
-				UnreliableEvent:FireClient(player, Buffer.revert(Identifier), content)
-				if logger[Identifier] then
-					task.defer(Logger.write, Identifier, `state: out -> unreliable -> {#content} data.`)
+				for _, unpacked in content do
+					UnreliableEvent:FireClient(player, Buffer.write(unpacked))
 				end
 				unreliableServerQueue[Identifier][player] = nil
 			end
@@ -240,7 +201,9 @@ function ServerProcess.start()
 		for Identifier: string, contents: { [Player]: { any } } in serverQueue do
 			for player, content: any in contents do
 				if #content > 0 and queueOut[player] then
-					ReliableEvent:FireClient(player, Buffer.revert(Identifier), content)
+					for _, unpacked in content do
+						ReliableEvent:FireClient(player, Buffer.write(unpacked))
+					end
 				end
 				serverQueue[Identifier][player] = nil
 			end
@@ -251,9 +214,6 @@ function ServerProcess.start()
 			for player: Player, requestsData: any in contents do
 				if #requestsData > 0 then
 					RequestEvent:FireClient(player, Buffer.revert(Identifier), "\1", requestsData)
-					if logger[Identifier] then
-						task.defer(Logger.write, Identifier, `state: out -> request -> {#requestsData} data.`)
-					end
 				end
 				queueOutRequest[1][Identifier][player] = nil
 			end
@@ -264,16 +224,13 @@ function ServerProcess.start()
 			for player: Player, toReturnDatas: any in contents do
 				if #toReturnDatas > 0 then
 					RequestEvent:FireClient(player, Buffer.revert(Identifier), "\0", toReturnDatas)
-					if logger[Identifier] then
-						task.defer(Logger.write, Identifier, `state: out -> return request -> {#toReturnDatas} data.`)
-					end
 				end
 				queueOutRequest[2][Identifier][player] = nil
 			end
 			queueOutRequest[2][Identifier] = nil
 		end
 		
-		for _, Identifier: string in registeredIdentifier do
+		for Identifier: string in registeredIdentifier do
 			if serverRequestQueue[Identifier] then
 				for player, content in serverRequestQueue[Identifier] do
 					if #content == 0 then serverRequestQueue[Identifier][player] = nil continue end
@@ -293,21 +250,6 @@ function ServerProcess.start()
 
 			local callback = serverCallback[Identifier] or nil
 			if not callback then continue end
-
-			-- Unreliable & Reliable
-			for player, content in queueIn[Identifier] do
-				if not callback then break end
-				for _, incoming in content do
-					if not callback then break end
-					if #incoming == 0 then continue end
-					for _, fn: any in callback do
-						for i=1,#incoming do
-							Spawn(fn, player, table.unpack(incoming[i] or {}))
-						end
-					end
-				end
-				queueIn[Identifier][player] = nil
-			end
 
 			-- Return Invoke
 			for player, content in queueInRequest[1][Identifier] do
@@ -361,22 +303,17 @@ function ServerProcess.start()
 			end
 		end
 	end)
-	local function onServerNetworkReceive(player: Player, Identifier: any, data: any)
-		if not Identifier or not data then return end
-		Identifier = Buffer.convert(Identifier)
-		if not serverQueue[Identifier] then
-			serverQueue[Identifier] = {}
+	local function onServerNetworkReceive(player: Player, data: buffer)
+		if not data then return end
+		local read = Buffer.read(data)
+		if not read then return end
+		for Identifier: string in registeredIdentifier do
+			local callback = serverCallback[Identifier] or nil
+			if not callback then continue end
+			for _, fn: any in callback do
+				Spawn(fn, player, table.unpack(read))
+			end
 		end
-		if not serverQueue[Identifier][player] then
-			serverQueue[Identifier][player] = {}
-		end
-		if not queueIn[Identifier][player] then
-			queueIn[Identifier][player] = {}
-		end
-		if logger[Identifier] then
-			task.defer(Logger.write, Identifier, `state: in -> net -> {#data} data.`)
-		end
-		table.insert(queueIn[Identifier][player], data)
 	end
 	ReliableEvent.OnServerEvent:Connect(onServerNetworkReceive)
 	UnreliableEvent.OnServerEvent:Connect(onServerNetworkReceive)
@@ -399,9 +336,6 @@ function ServerProcess.start()
 			table.insert(queueInRequest[1][Identifier][player], data)
 		else
 			table.insert(queueInRequest[2][Identifier][player], data)
-		end
-		if logger[Identifier] then
-			task.defer(Logger.write, Identifier, `state: in -> request -> {#data} data.`)
 		end
 	end)
 end

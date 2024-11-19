@@ -1,5 +1,5 @@
 --!strict
 --!optimize 2
 return function(): number?
-	return tonumber(tostring(Random.new():NextNumber()):sub(3, 7)) -- 4-5 digits
+	return tonumber(string.sub(tostring(Random.new():NextNumber()), 3, 8)) -- 6 digits
 end

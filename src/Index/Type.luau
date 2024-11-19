@@ -4,19 +4,12 @@ type rateLimitArg = {
 	interval: number?,
 }
 
-type logging = {
-	store: boolean,
-	opt: boolean,
-}
-
 export type ServerConf = {
 	rateLimit: rateLimitArg?,
-	logging: logging?,
 }
 
 export type ClientConf = {
 	yieldWait: number?,
-	logging: logging?,
 }
 
 export type Middleware = {
@@ -34,7 +27,6 @@ export type Client = {
 	DisconnectAll: (self: Client) -> (),
 	Wait: (self: Client) -> number,
 	Destroy: (self: Client) -> (),
-	logs: (self: Client) -> any,
 }
 
 export type Server = {
@@ -47,7 +39,6 @@ export type Server = {
 	DisconnectAll: (self: Server) -> (),
 	Wait: (self: Server) -> number,
 	Destroy: (self: Server) -> (),
-	logs: (self: Server) -> any,
 }
 
 export type Signal = {
