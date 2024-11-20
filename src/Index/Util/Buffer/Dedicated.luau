@@ -19,8 +19,8 @@ local writestring = buffer.writestring
 local default: { [string]: number } = {
 	point = 0,
 	next = 0,
-	size = 32,
-	bufferSize = 32,
+	size = 128,
+	bufferSize = 128,
 }
 
 function DedicatedBuffer.copy(self: any, offset: number, b: buffer?, src: buffer?, srcOffset: number?, count: number?)
@@ -65,51 +65,51 @@ function DedicatedBuffer.buildAndRemove(self: any): buffer
 	return build
 end
 
-function DedicatedBuffer.wi8(self: any, val: number)
+function DedicatedBuffer.wi8(self: any, val: number, alloc: number?)
 	if not val then return end
-	self:alloc(1)
+	self:alloc(alloc or 1)
 	writei8(self.buffer, self.point, val)
 end
 
-function DedicatedBuffer.wi16(self: any, val: number)
+function DedicatedBuffer.wi16(self: any, val: number, alloc: number?)
 	if not val then return end
-	self:alloc(2)
+	self:alloc(alloc or 2)
 	writei16(self.buffer, self.point, val)
 end
 
-function DedicatedBuffer.wi32(self: any, val: number)
+function DedicatedBuffer.wi32(self: any, val: number, alloc: number?)
 	if not val then return end
-	self:alloc(4)
+	self:alloc(alloc or 4)
 	writei32(self.buffer, self.point, val)
 end
 
-function DedicatedBuffer.wu8(self: any, val: number)
+function DedicatedBuffer.wu8(self: any, val: number, alloc: number?)
 	if not val then return end
-	self:alloc(1)
+	self:alloc(alloc or 1)
 	writeu8(self.buffer, self.point, val)
 end
 
-function  DedicatedBuffer.wu16(self: any, val: number)
+function  DedicatedBuffer.wu16(self: any, val: number, alloc: number?)
 	if not val then return end
-	self:alloc(2)
+	self:alloc(alloc or 2)
 	writeu16(self.buffer, self.point, val)
 end
 
-function DedicatedBuffer.wu32(self: any, val: number)
+function DedicatedBuffer.wu32(self: any, val: number, alloc: number?)
 	if not val then return end
-	self:alloc(4)
+	self:alloc(alloc or 4)
 	writeu32(self.buffer, self.point, val)
 end
 
-function DedicatedBuffer.wf32(self: any, val: number)
+function DedicatedBuffer.wf32(self: any, val: number, alloc: number?)
 	if not val then return end
-	self:alloc(4)
+	self:alloc(alloc or 4)
 	writef32(self.buffer, self.point, val)
 end
 
-function DedicatedBuffer.wf64(self: any, val: number)
+function DedicatedBuffer.wf64(self: any, val: number, alloc: number?)
 	if not val then return end
-	self:alloc(8)
+	self:alloc(alloc or 8)
 	writef64(self.buffer, self.point, val)
 end
 
@@ -119,14 +119,15 @@ function DedicatedBuffer.wstring(self: any, val: string)
 	writestring(self.buffer, self.point, val)
 end
 
-function DedicatedBuffer.wType(self: any, typeByte: number)
-	self:alloc(1)
-	writeu8(self.buffer, self.point, typeByte)
+function DedicatedBuffer.wType(self: any, ref: number)
+	writeu8(self.buffer, self.point, ref)
 	self.point += 1
 end
 
 function DedicatedBuffer.pack(self: any, data: {any})
-	if typeof(data) == "number" then
+	if typeof(data) == "nil" then
+		self:wi8(0)
+	elseif typeof(data) == "number" then
 		if math.floor(data) == data then -- Integer
 			if data >= 0 and data <= 255 then
 				self:wi8(1) -- u8 marker
@@ -149,26 +150,37 @@ function DedicatedBuffer.pack(self: any, data: {any})
 		self:wi8(5) -- boolean marker
 		self:wu8(data and 1 or 0)
 	elseif typeof(data) == "string" then
-		self:wi8(6) -- string marker
 		local length = #data
-		if length < 255 then
-			--self:wi8(7) -- small string marker
-			self:wu8(length) -- use 1 byte for length if small
+		if length <= 255 then
+			self:wi8(6)
+			self:wu8(length)
+		elseif length <= 65535 then
+			self:wi8(7)
+			self:wu16(length)
 		else
-			--self:wi8(8) -- large string marker
-			self:wi32(length) -- 32-bit for larger strings
+			self:wi8(8)
+			self:wi32(length)
 		end
 		self:wstring(data)
 	elseif typeof(data) == "Vector3" then
-		self:wi8(7) -- Vector3 marker
+		self:wi8(9) -- Vector3 marker
 		self:wf32(data.X)
 		self:wf32(data.Y)
 		self:wf32(data.Z)
+	elseif typeof(data) == "Vector2" then
+		self:wi8(10) -- Vector2 marker
+		self:wf32(data.X)
+		self:wf32(data.Y)
 	elseif typeof(data) == "CFrame" then
-		self:wi8(8) -- CFrame marker
+		self:wi8(11) -- CFrame marker
 		for _, v in {data:GetComponents()} do
 			self:wf32(v)
 		end
+	elseif typeof(data) == "Color3" then
+		self:wi8(12) -- Color3 marker
+		self:wu8(data.R * 255)
+		self:wu8(data.G * 255)
+		self:wu8(data.B * 255)
 	elseif typeof(data) == "table" then
 		--local isArray = (next(data) ~= nil and #data > 0) and true or false
 		local isArray = true
@@ -180,21 +192,26 @@ function DedicatedBuffer.pack(self: any, data: {any})
 			end
 		end
 		if isArray then
-			self:wi8(9) -- array marker
-			self:wi32(count) -- use 32-bit length
+			self:wi8(13) -- array marker
+			self:wu16(count) -- use 32-bit length
 			for _, v in data do
 				self:pack(v)
 			end
 		else
-			self:wi8(10) -- dictionary marker
-			self:wi32(count) -- number of key-value pairs
+			self:wi8(14) -- dictionary marker
+			self:wu16(count) -- number of key-value pairs
 			for k, v in data do
 				self:pack(k) -- pack the key
 				self:pack(v) -- pack the value
 			end
 		end
+	elseif typeof(data) == "Instance" then
+		self:wi8(15) -- Instance marker
+		self:pack(data.ClassName) -- Serialize ClassName
+		self:pack(data.Name) -- Serialize Name
+		self:pack(data:GetAttributes())
 	else
-		error("Unsupported data type: " .. typeof(data))
+		warn(`Unsupported data type: {typeof(data)} value: {data}`)
 	end
 end
 

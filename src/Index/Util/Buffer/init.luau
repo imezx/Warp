@@ -21,13 +21,15 @@ local len = buffer.len
 local function readValue(b: buffer, position: number): (any, number)
 	local typeByte = readu8(b, position)
 	position += 1
-	if typeByte == 1 then -- u8
+	if typeByte == 0 then -- nil
+		return nil, position
+	elseif typeByte == 1 then -- int u8
 		local value = readu8(b, position)
 		return value, position + 1
-	elseif typeByte == 2 then -- i16
+	elseif typeByte == 2 then -- int i16
 		local value = readi16(b, position)
 		return value, position + 2
-	elseif typeByte == 3 then -- i32
+	elseif typeByte == 3 then -- int i32
 		local value = readi32(b, position)
 		return value, position + 4
 	elseif typeByte == 4 then -- f64
@@ -36,33 +38,41 @@ local function readValue(b: buffer, position: number): (any, number)
 	elseif typeByte == 5 then -- boolean
 		local value = readu8(b, position) == 1
 		return value, position + 1
-	elseif typeByte == 6 then -- string
-		local lengthByte = readu8(b, position)
-		position += 1
-		local value
-		if lengthByte < 255 then
-			value = readstring(b, position, lengthByte)
-			return value, position + lengthByte
-		else
-			local length = readi32(b, position)
-			position += 4
-			value = readstring(b, position, length)
-			return value, position + length
-		end
-	elseif typeByte == 7 then -- Vector3
+	elseif typeByte == 6 then -- string u8
+		local length = readu8(b, position)
+		local value = readstring(b, position + 1, length)
+		return value, position + length + 1
+	elseif typeByte == 7 then -- string u16
+		local length = readu16(b, position)
+		local value = readstring(b, position + 2, length)
+		return value, position + length + 2
+	elseif typeByte == 8 then -- string i32
+		local length = readi32(b, position)
+		local value = readstring(b, position + 4, length)
+		return value, position + length + 4
+	elseif typeByte == 9 then -- Vector3
 		local x = readf32(b, position)
 		local y = readf32(b, position + 4)
 		local z = readf32(b, position + 8)
 		return Vector3.new(x, y, z), position + 12
-	elseif typeByte == 8 then -- CFrame
+	elseif typeByte == 10 then -- Vector2
+		local x = readf32(b, position)
+		local y = readf32(b, position + 8)
+		return Vector2.new(x, y), position + 8
+	elseif typeByte == 11 then -- CFrame
 		local components = {}
 		for i = 1, 12 do
 			table.insert(components, readf32(b, position + (i - 1) * 4))
 		end
 		return CFrame.new(unpack(components)), position + 48
-	elseif typeByte == 9 then -- array
-		local length = readi32(b, position)
-		position += 4
+	elseif typeByte == 12 then -- Vector2
+		local r = readu8(b, position)
+		local g = readu8(b, position + 1)
+		local b = readu8(b, position + 2)
+		return Color3.fromRGB(r, g, b), position + 3
+	elseif typeByte == 13 then -- array
+		local length = readu16(b, position)
+		position += 2
 		local array = {}
 		for _ = 1, length do
 			local value
@@ -70,9 +80,9 @@ local function readValue(b: buffer, position: number): (any, number)
 			table.insert(array, value)
 		end
 		return array, position
-	elseif typeByte == 10 then -- dictionary
-		local length = readi32(b, position)
-		position += 4
+	elseif typeByte == 14 then -- dictionary
+		local length = readu16(b, position)
+		position += 2
 		local dict = {}
 		for _ = 1, length do
 			local key, value
@@ -81,6 +91,16 @@ local function readValue(b: buffer, position: number): (any, number)
 			dict[key] = value
 		end
 		return dict, position
+	elseif typeByte == 15 then -- Instance
+		local className, position1 = readValue(b, position)
+		local name, position2 = readValue(b, position1)
+		local properties, position3 = readValue(b, position2)
+		local instance: Instance = Instance.new(className)
+		instance.Name = name
+		for key, value in properties do
+			instance:SetAttribute(key, value)
+		end
+		return instance, position3
 	end
 	error(`Unsupported type marker: {typeByte}`)
 end

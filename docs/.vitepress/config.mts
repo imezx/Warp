@@ -33,14 +33,12 @@ function side() {
             text: 'Feature',
             items: [
               { text: 'Rate Limit', link: '/api/1.0/ratelimit' },
-              { text: 'Middleware', link: '/api/1.0/middleware' },
             ]
           },
           {
             text: 'Utilities',
             items: [
               { text: 'Signal', link: '/api/1.0/signal' },
-              { text: 'Buffer', link: '/api/1.0/buffer' },
             ]
           },
         ]
