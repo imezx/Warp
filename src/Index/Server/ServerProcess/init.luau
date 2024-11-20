@@ -191,7 +191,7 @@ function ServerProcess.start()
 			for player: Player, content: any in players do
 				if #content == 0 then continue end
 				for _, unpacked in content do
-					UnreliableEvent:FireClient(player, Buffer.write(unpacked))
+					UnreliableEvent:FireClient(player, Buffer.revert(Identifier), Buffer.write(unpacked))
 				end
 				unreliableServerQueue[Identifier][player] = nil
 			end
@@ -202,7 +202,7 @@ function ServerProcess.start()
 			for player, content: any in contents do
 				if #content > 0 and queueOut[player] then
 					for _, unpacked in content do
-						ReliableEvent:FireClient(player, Buffer.write(unpacked))
+						ReliableEvent:FireClient(player, Buffer.revert(Identifier), Buffer.write(unpacked))
 					end
 				end
 				serverQueue[Identifier][player] = nil
@@ -229,7 +229,7 @@ function ServerProcess.start()
 			end
 			queueOutRequest[2][Identifier] = nil
 		end
-		
+
 		for Identifier: string in registeredIdentifier do
 			if serverRequestQueue[Identifier] then
 				for player, content in serverRequestQueue[Identifier] do
@@ -303,12 +303,14 @@ function ServerProcess.start()
 			end
 		end
 	end)
-	local function onServerNetworkReceive(player: Player, data: buffer)
-		if not data then return end
+	local function onServerNetworkReceive(player: Player, Identifier: buffer | string, data: buffer)
+		if not Identifier or not data then return end
+		Identifier = Buffer.convert(Identifier :: buffer)
 		local read = Buffer.read(data)
 		if not read then return end
-		for Identifier: string in registeredIdentifier do
-			local callback = serverCallback[Identifier] or nil
+		for idx: string in registeredIdentifier do
+			if idx ~= Identifier then continue end
+			local callback = serverCallback[idx] or nil
 			if not callback then continue end
 			for _, fn: any in callback do
 				Spawn(fn, player, table.unpack(read))

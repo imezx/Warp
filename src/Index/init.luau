@@ -32,32 +32,32 @@ function Index.Client(Identifier: string, conf: Type.ClientConf?): Type.Client
 	return require(Client.Index)(Identifier, conf) :: Type.Client
 end
 
-function Index.fromServerArray(arrays: { any }): Type.fromServerArray
+function Index.fromServerArray(arrays: { string } | { [string]: Type.ServerConf }): Type.fromServerArray
 	Assert(IsServer, `[Warp]: Calling .fromServerArray({arrays}) on client side (expected server side)`)
 	Assert(typeof(arrays) == "table", "[Warp]: Array must be a table type, got {typeof(arrays)}")
-	local copy = {}
-	for param1: any, param2: any in arrays do
+	local copy: { [string]: Type.Server } = {}
+	for param1, param2: string | Type.ServerConf in arrays do
 		if typeof(param2) == "table" then
 			copy[param1] = Index.Server(param1, param2)
 		else
 			copy[param2] = Index.Server(param2)
 		end
 	end
-	return copy :: typeof(copy)
+	return copy
 end
 
-function Index.fromClientArray(arrays: { any }): Type.fromClientArray
+function Index.fromClientArray(arrays: { string } | { [string]: Type.ClientConf }): Type.fromClientArray
 	Assert(not IsServer, `[Warp]: Calling .fromClientArray({arrays}) on server side (expected client side)`)
 	Assert(typeof(arrays) == "table", `[Warp]: Array must be a table type, got {typeof(arrays)}`)
 	local copy = {}
-	for param1: any, param2: any in arrays do
+	for param1, param2: string | Type.ClientConf in arrays do
 		if typeof(param2) == "table" then
 			copy[param1] = Index.Client(param1, param2)
 		else
 			copy[param2] = Index.Client(param2)
 		end
 	end
-	return copy :: typeof(copy)
+	return copy
 end
 
 function Index.Signal(Identifier: string)

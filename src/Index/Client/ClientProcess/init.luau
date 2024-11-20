@@ -139,7 +139,7 @@ function ClientProcess.start()
 			if #data == 0 then continue end
 			if clientRatelimit[Identifier](#data) then
 				for _, unpacked in data do
-					UnreliableEvent:FireServer(Buffer.write(unpacked))
+					UnreliableEvent:FireServer(Buffer.revert(Identifier), Buffer.write(unpacked))
 				end
 			end
 			unreliableClientQueue[Identifier] = nil
@@ -149,7 +149,7 @@ function ClientProcess.start()
 			if #data > 0 then
 				if clientRatelimit[Identifier](#data) then
 					for _, unpacked in data do
-						ReliableEvent:FireServer(Buffer.write(unpacked))
+						ReliableEvent:FireServer(Buffer.revert(Identifier), Buffer.write(unpacked))
 					end
 				end
 				clientQueue[Identifier] = nil
@@ -230,12 +230,14 @@ function ClientProcess.start()
 			end
 		end
 	end)
-	local function onClientNetworkReceive(data: buffer)
-		if not data then return end
+	local function onClientNetworkReceive(Identifier: buffer | string, data: buffer)
+		if not Identifier or not data then return end
+		Identifier = Buffer.convert(Identifier :: buffer)
 		local read = Buffer.read(data)
 		if not read then return end
-		for Identifier: string in registeredIdentifier do
-			local callback = clientCallback[Identifier] or nil
+		for idx: string in registeredIdentifier do
+			if idx ~= Identifier then continue end
+			local callback = clientCallback[idx] or nil
 			if not callback then continue end
 			for _, fn: any in callback do
 				Spawn(fn, table.unpack(read))
