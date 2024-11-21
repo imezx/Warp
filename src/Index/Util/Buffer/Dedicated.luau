@@ -127,6 +127,47 @@ end
 function DedicatedBuffer.pack(self: any, data: {any})
 	if typeof(data) == "nil" then
 		self:wi8(0)
+	elseif typeof(data) == "Instance" then
+		self:wi8(-1) -- Instance marker
+		self:pack(data.ClassName) -- Serialize ClassName
+		self:pack(data.Name) -- Serialize Name
+		self:pack(data:GetAttributes())
+	elseif typeof(data) == "table" then
+		--local isArray = (next(data) ~= nil and #data > 0) and true or false
+		local isArray = true
+		local count = 0
+		for k in data do
+			count += 1
+			if typeof(k) ~= "number" or math.floor(k) ~= k then
+				isArray = false
+			end
+		end
+		if isArray then
+			self:wi8(-2) -- array marker
+			self:wu16(count) -- use 32-bit length
+			for _, v in data do
+				self:pack(v)
+			end
+		else
+			self:wi8(-3) -- dictionary marker
+			self:wu16(count) -- number of key-value pairs
+			for k, v in data do
+				self:pack(k) -- pack the key
+				self:pack(v) -- pack the value
+			end
+		end
+	elseif typeof(data) == "EnumItem" then
+		self:wi8(-4)
+		self:wi8(#`{data.EnumType}`)
+		self:wstring(`{data.EnumType}`)
+		self:wu8(data.Value)
+	elseif typeof(data) == "BrickColor" then
+		self:wi8(-5)
+		self:wi16(data.Number)
+	elseif typeof(data) == "Enum" then
+		self:wi8(-6)
+		self:wi8(#`{data}`)
+		self:wstring(`{data}`)
 	elseif typeof(data) == "number" then
 		if math.floor(data) == data then -- Integer
 			if data >= 0 and data <= 255 then
@@ -181,35 +222,6 @@ function DedicatedBuffer.pack(self: any, data: {any})
 		self:wu8(data.R * 255)
 		self:wu8(data.G * 255)
 		self:wu8(data.B * 255)
-	elseif typeof(data) == "table" then
-		--local isArray = (next(data) ~= nil and #data > 0) and true or false
-		local isArray = true
-		local count = 0
-		for k in data do
-			count += 1
-			if typeof(k) ~= "number" or math.floor(k) ~= k then
-				isArray = false
-			end
-		end
-		if isArray then
-			self:wi8(13) -- array marker
-			self:wu16(count) -- use 32-bit length
-			for _, v in data do
-				self:pack(v)
-			end
-		else
-			self:wi8(14) -- dictionary marker
-			self:wu16(count) -- number of key-value pairs
-			for k, v in data do
-				self:pack(k) -- pack the key
-				self:pack(v) -- pack the value
-			end
-		end
-	elseif typeof(data) == "Instance" then
-		self:wi8(15) -- Instance marker
-		self:pack(data.ClassName) -- Serialize ClassName
-		self:pack(data.Name) -- Serialize Name
-		self:pack(data:GetAttributes())
 	else
 		warn(`Unsupported data type: {typeof(data)} value: {data}`)
 	end

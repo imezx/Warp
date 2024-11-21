@@ -19,10 +19,53 @@ local readstring = buffer.readstring
 local len = buffer.len
 
 local function readValue(b: buffer, position: number): (any, number)
-	local typeByte = readu8(b, position)
+	local typeByte = readi8(b, position)
 	position += 1
 	if typeByte == 0 then -- nil
 		return nil, position
+	elseif typeByte == -1 then -- Instance
+		local className, position1 = readValue(b, position)
+		local name, position2 = readValue(b, position1)
+		local properties, position3 = readValue(b, position2)
+		local instance: Instance = Instance.new(className)
+		instance.Name = name
+		for key, value in properties do
+			instance:SetAttribute(key, value)
+		end
+		return instance, position3
+	elseif typeByte == -2 then -- array
+		local length = readu16(b, position)
+		position += 2
+		local array = {}
+		for _ = 1, length do
+			local value
+			value, position = readValue(b, position)
+			table.insert(array, value)
+		end
+		return array, position
+	elseif typeByte == -3 then -- dictionary
+		local length = readu16(b, position)
+		position += 2
+		local dict = {}
+		for _ = 1, length do
+			local key, value
+			key, position = readValue(b, position)
+			value, position = readValue(b, position)
+			dict[key] = value
+		end
+		return dict, position
+	elseif typeByte == -4 then -- EnumItem
+		local length = readi8(b, position)
+		local value = readstring(b, position + 1, length)
+		local value2 = readu8(b, position + 1 + length)
+		return Enum[value]:FromValue(value2), position + 2 + length
+	elseif typeByte == -5 then -- BrickColor
+		local value = readi16(b, position)
+		return BrickColor.new(value), position + 2
+	elseif typeByte == -6 then -- Enum
+		local length = readi8(b, position)
+		local value = readstring(b, position + 1, length)
+		return Enum[value], position + 1 + length
 	elseif typeByte == 1 then -- int u8
 		local value = readu8(b, position)
 		return value, position + 1
@@ -65,42 +108,11 @@ local function readValue(b: buffer, position: number): (any, number)
 			table.insert(components, readf32(b, position + (i - 1) * 4))
 		end
 		return CFrame.new(unpack(components)), position + 48
-	elseif typeByte == 12 then -- Vector2
+	elseif typeByte == 12 then -- Color3
 		local r = readu8(b, position)
 		local g = readu8(b, position + 1)
 		local b = readu8(b, position + 2)
 		return Color3.fromRGB(r, g, b), position + 3
-	elseif typeByte == 13 then -- array
-		local length = readu16(b, position)
-		position += 2
-		local array = {}
-		for _ = 1, length do
-			local value
-			value, position = readValue(b, position)
-			table.insert(array, value)
-		end
-		return array, position
-	elseif typeByte == 14 then -- dictionary
-		local length = readu16(b, position)
-		position += 2
-		local dict = {}
-		for _ = 1, length do
-			local key, value
-			key, position = readValue(b, position)
-			value, position = readValue(b, position)
-			dict[key] = value
-		end
-		return dict, position
-	elseif typeByte == 15 then -- Instance
-		local className, position1 = readValue(b, position)
-		local name, position2 = readValue(b, position1)
-		local properties, position3 = readValue(b, position2)
-		local instance: Instance = Instance.new(className)
-		instance.Name = name
-		for key, value in properties do
-			instance:SetAttribute(key, value)
-		end
-		return instance, position3
 	end
 	error(`Unsupported type marker: {typeByte}`)
 end
