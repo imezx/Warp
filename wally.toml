@@ -4,7 +4,7 @@ version = "1.0.13"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 license = "MIT"
-exclude = ["node_modules", "docs", ".github", "*.rbxl", "*.rbxmx", "*.rbxml", "TestEZ", "test.project.json"]
+exclude = ["node_modules", "docs", ".github", "*.rbxl", "*.rbxmx", "*.rbxml", "*.rbxm", "TestEZ", "test.project.json"]
 description = "A very-fast & powerful networking library for Roblox."
 
 [dependencies]
