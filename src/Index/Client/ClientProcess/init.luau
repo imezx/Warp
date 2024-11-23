@@ -230,10 +230,10 @@ function ClientProcess.start()
 			end
 		end
 	end)
-	local function onClientNetworkReceive(Identifier: buffer | string, data: buffer)
+	local function onClientNetworkReceive(Identifier: buffer | string, data: buffer, ref: { any }?)
 		if not Identifier or not data then return end
 		Identifier = Buffer.convert(Identifier :: buffer)
-		local read = Buffer.read(data)
+		local read = Buffer.read(data, ref)
 		if not read then return end
 		for idx: string in registeredIdentifier do
 			if idx ~= Identifier then continue end

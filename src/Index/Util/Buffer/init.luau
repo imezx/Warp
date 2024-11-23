@@ -18,28 +18,27 @@ local readf64 = buffer.readf64
 local readstring = buffer.readstring
 local len = buffer.len
 
-local function readValue(b: buffer, position: number): (any, number)
+local function readValue(b: buffer, position: number, ref: { any }?): (any, number)
 	local typeByte = readi8(b, position)
 	position += 1
 	if typeByte == 0 then -- nil
 		return nil, position
 	elseif typeByte == -1 then -- Instance
-		local className, position1 = readValue(b, position)
-		local name, position2 = readValue(b, position1)
-		local properties, position3 = readValue(b, position2)
-		local instance: Instance = Instance.new(className)
-		instance.Name = name
-		for key, value in properties do
-			instance:SetAttribute(key, value)
+		if not ref or #ref == 0 then
+			return nil, position + 1
 		end
-		return instance, position3
+		local value = table.remove(ref, readu8(b, position))
+		if typeof(value) == "Instance" then
+			return value, position + 1
+		end
+		return nil, position + 1
 	elseif typeByte == -2 then -- array
 		local length = readu16(b, position)
 		position += 2
 		local array = {}
 		for _ = 1, length do
 			local value
-			value, position = readValue(b, position)
+			value, position = readValue(b, position, ref)
 			table.insert(array, value)
 		end
 		return array, position
@@ -49,8 +48,8 @@ local function readValue(b: buffer, position: number): (any, number)
 		local dict = {}
 		for _ = 1, length do
 			local key, value
-			key, position = readValue(b, position)
-			value, position = readValue(b, position)
+			key, position = readValue(b, position, ref)
+			value, position = readValue(b, position, ref)
 			dict[key] = value
 		end
 		return dict, position
@@ -129,18 +128,18 @@ function Buffer.revert(s: string): buffer
 	return fromstring(s)
 end
 
-function Buffer.write(data: { any }): buffer
+function Buffer.write(data: { any }): (buffer, (any)?)
 	local newBuffer = Dedicated()
 	newBuffer:pack(data)
 	return newBuffer:buildAndRemove()
 end
 
-function Buffer.read(b: buffer): any?
+function Buffer.read(b: buffer, ref: { any }?): any?
 	local position = 0
 	local result = {}
 	while position < len(b) do
 		local value
-		value, position = readValue(b, position)
+		value, position = readValue(b, position, ref)
 		table.insert(result, value)
 	end
 	return table.unpack(result)

@@ -303,10 +303,10 @@ function ServerProcess.start()
 			end
 		end
 	end)
-	local function onServerNetworkReceive(player: Player, Identifier: buffer | string, data: buffer)
+	local function onServerNetworkReceive(player: Player, Identifier: buffer | string, data: buffer, ref: { any }?)
 		if not Identifier or not data then return end
 		Identifier = Buffer.convert(Identifier :: buffer)
-		local read = Buffer.read(data)
+		local read = Buffer.read(data, ref)
 		if not read then return end
 		for idx: string in registeredIdentifier do
 			if idx ~= Identifier then continue end

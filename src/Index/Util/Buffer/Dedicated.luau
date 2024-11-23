@@ -56,13 +56,15 @@ function DedicatedBuffer.build(self: any): buffer
 	return build
 end
 
-function DedicatedBuffer.buildAndRemove(self: any): buffer
+function DedicatedBuffer.buildAndRemove(self: any): (buffer, (any)?)
 	local p: number = self.next > self.point and self.next or self.point
 	local build: buffer = create(p)
+	local ref = #self.ref > 0 and table.clone(self.ref) or nil
 
 	copy(build, 0, self.buffer, 0, p)
+	
 	self:remove()
-	return build
+	return build, ref
 end
 
 function DedicatedBuffer.wi8(self: any, val: number, alloc: number?)
@@ -124,14 +126,20 @@ function DedicatedBuffer.wType(self: any, ref: number)
 	self.point += 1
 end
 
+function DedicatedBuffer.wRef(self: any, value: any, alloc: number?)
+	self:alloc(alloc or 1)
+	table.insert(self.ref, value)
+	local index = #self.ref
+	writeu8(self.buffer, self.point, index)
+	self.point += 1
+end
+
 function DedicatedBuffer.pack(self: any, data: {any})
 	if typeof(data) == "nil" then
 		self:wi8(0)
 	elseif typeof(data) == "Instance" then
 		self:wi8(-1) -- Instance marker
-		self:pack(data.ClassName) -- Serialize ClassName
-		self:pack(data.Name) -- Serialize Name
-		self:pack(data:GetAttributes())
+		self:wRef(data)
 	elseif typeof(data) == "table" then
 		--local isArray = (next(data) ~= nil and #data > 0) and true or false
 		local isArray = true
@@ -232,6 +240,7 @@ function DedicatedBuffer.flush(self: any)
 	self.next = default.next
 	self.size = default.size
 	self.buffer = create(default.bufferSize)
+	table.clear(self.ref)
 end
 
 function DedicatedBuffer.new()
@@ -239,7 +248,8 @@ function DedicatedBuffer.new()
 		point = default.point,
 		next = default.next,
 		size = default.size,
-		buffer = create(default.bufferSize)
+		buffer = create(default.bufferSize),
+		ref = {},
 	}, DedicatedBuffer)
 end
 
