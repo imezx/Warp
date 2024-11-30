@@ -36,7 +36,7 @@ function DedicatedBuffer.alloc(self: any, byte: number)
 	local b: buffer = self.buffer
 
 	while self.next + byte >= size do
-		size = math.floor(size * 1.2)
+		size = math.floor(size * 1.25) -- +25% increase
 	end
 	local newBuffer: buffer = create(size)
 	copy(newBuffer, 0, b)

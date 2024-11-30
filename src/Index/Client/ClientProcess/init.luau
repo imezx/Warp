@@ -231,17 +231,16 @@ function ClientProcess.start()
 		end
 	end)
 	local function onClientNetworkReceive(Identifier: buffer | string, data: buffer, ref: { any }?)
-		if not Identifier or not data then return end
+		if not Identifier or typeof(Identifier) ~= "buffer" or not data or typeof(data) ~= "buffer" then return end
 		Identifier = Buffer.convert(Identifier :: buffer)
+		local idx: string = registeredIdentifier[Identifier]
+		if not idx then return end
 		local read = Buffer.read(data, ref)
 		if not read then return end
-		for idx: string in registeredIdentifier do
-			if idx ~= Identifier then continue end
-			local callback = clientCallback[idx] or nil
-			if not callback then continue end
-			for _, fn: any in callback do
-				Spawn(fn, table.unpack(read))
-			end
+		local callback = clientCallback[idx]
+		if not callback then return end
+		for _, fn: any in callback do
+			Spawn(fn, table.unpack(read))
 		end
 	end
 	ReliableEvent.OnClientEvent:Connect(onClientNetworkReceive)

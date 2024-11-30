@@ -24,7 +24,7 @@ function SerDes.increment(Identifier: string, timeout: number?): number
 			error(`Serdes: {Identifier} is taking too long to retrieve, seems like it's not replicated on server.`, 2)
 		end)
 		task.spawn(function()
-			while coroutine.status(cancel) ~= "dead" and task.wait(0.25) do -- let it loop for yields!
+			while coroutine.status(cancel) ~= "dead" and task.wait(0.04) do -- let it loop for yields! 1/24
 				if Event:GetAttribute(Identifier) then
 					task.cancel(cancel)
 					task.spawn(yieldThread, Event:GetAttribute(Identifier))
