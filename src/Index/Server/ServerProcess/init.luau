@@ -306,11 +306,10 @@ function ServerProcess.start()
 	local function onServerNetworkReceive(player: Player, Identifier: buffer | string, data: buffer, ref: { any }?)
 		if not Identifier or typeof(Identifier) ~= "buffer" or not data or typeof(data) ~= "buffer" then return end
 		Identifier = Buffer.convert(Identifier :: buffer)
-		local idx: string = registeredIdentifier[Identifier]
-		if not idx then return end
+		if not registeredIdentifier[Identifier :: string] then return end
 		local read = Buffer.read(data, ref)
 		if not read then return end
-		local callback = serverCallback[idx]
+		local callback = serverCallback[Identifier :: string]
 		if not callback then return end
 		for _, fn: any in callback do
 			Spawn(fn, player, table.unpack(read))
