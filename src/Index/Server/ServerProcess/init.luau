@@ -49,12 +49,13 @@ local ReliableEvent = Event.Reliable
 local UnreliableEvent = Event.Unreliable
 local RequestEvent = Event.Request
 
+RateLimit.Protect()
+
 local function initializeEachPlayer(player: Player)
 	if not player then return end
 	if not queueOut[player] then
 		queueOut[player] = {}
 	end
-
 	for Identifier: string in registeredIdentifier do
 		if not player then break end
 		if not queueOut[player][Identifier] then

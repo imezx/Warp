@@ -1,5 +1,5 @@
 -- Warp Library (@Eternity_Devs)
--- version 1.0.13
+-- version 1.0.14
 --!strict
 --!native
 --!optimize 2
@@ -11,6 +11,8 @@ return {
 	fromServerArray = Index.fromServerArray,
 	fromClientArray = Index.fromClientArray,
 	
+	OnSpamSignal = Index.OnSpamSignal,
+
 	Signal = Index.Signal,
 	fromSignalArray = Index.fromSignalArray,
 
