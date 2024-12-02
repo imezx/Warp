@@ -62,7 +62,7 @@ function DedicatedBuffer.buildAndRemove(self: any): (buffer, (any)?)
 	local ref = #self.ref > 0 and table.clone(self.ref) or nil
 
 	copy(build, 0, self.buffer, 0, p)
-	
+
 	self:remove()
 	return build, ref
 end
@@ -127,6 +127,7 @@ function DedicatedBuffer.wType(self: any, ref: number)
 end
 
 function DedicatedBuffer.wRef(self: any, value: any, alloc: number?)
+	if not value then return end
 	self:alloc(alloc or 1)
 	table.insert(self.ref, value)
 	local index = #self.ref

@@ -85,6 +85,29 @@ local function initializeEachPlayer(player: Player)
 end
 
 Players.PlayerAdded:Connect(initializeEachPlayer)
+Players.PlayerRemoving:Connect(function(player: Player)
+	if not player then return end
+	if queueOut[player] then
+		queueOut[player] = nil
+	end
+	for _, map in { serverQueue, unreliableServerQueue, serverRequestQueue } do
+		for Identifier: string in map do
+			map[Identifier][player] = nil
+		end
+	end
+	for i=1,2 do
+		for Identifier: string in queueInRequest[i] do
+			if queueInRequest[i][Identifier][player] then
+				queueInRequest[i][Identifier][player] = nil
+			end
+		end
+		for Identifier: string in queueOutRequest[i] do
+			if queueOutRequest[i][Identifier][player] then
+				queueOutRequest[i][Identifier][player] = nil
+			end
+		end
+	end
+end)
 
 function ServerProcess.insertQueue(Identifier: string, reliable: boolean, player: Player, ...: any)
 	if not reliable then

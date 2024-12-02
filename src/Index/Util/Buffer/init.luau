@@ -27,7 +27,7 @@ local function readValue(b: buffer, position: number, ref: { any }?): (any, numb
 		if not ref or #ref == 0 then
 			return nil, position + 1
 		end
-		local value = table.remove(ref, readu8(b, position))
+		local value = ref[readu8(b, position)]
 		if typeof(value) == "Instance" then
 			return value, position + 1
 		end
@@ -142,6 +142,7 @@ function Buffer.read(b: buffer, ref: { any }?): any?
 		value, position = readValue(b, position, ref)
 		table.insert(result, value)
 	end
+	ref = nil
 	return table.unpack(result)
 end
 

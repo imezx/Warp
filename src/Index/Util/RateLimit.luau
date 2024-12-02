@@ -20,7 +20,7 @@ setmetatable(meta , {
 			map[key] = 1
 			return
 		end
-		if value >= 1e1 then -- 100
+		if value >= 1e2 then -- 100
 			Signal:Fire(key)
 			return
 		end
@@ -63,7 +63,7 @@ function RateLimit.create(Identifier: string, entrance: number?, interval: numbe
 end
 
 function RateLimit.Protect()
-	if not RunService:IsServer() or Reliable:GetAttribute("Protected") then return end
+	if not RunService:IsServer() or Reliable:GetAttribute("Protected") or Unreliable:GetAttribute("Protected") or Request:GetAttribute("Protected") then return end
 	Reliable:SetAttribute("Protected", true)
 	Unreliable:SetAttribute("Protected", true)
 	Request:SetAttribute("Protected", true)
