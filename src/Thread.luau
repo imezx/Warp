@@ -1,6 +1,6 @@
---!native
 --!strict
 --!optimize 2
+--@EternityDev
 local thread: thread?
 
 local function passer<T...>(func: (T...) -> (), ...: T...): ()

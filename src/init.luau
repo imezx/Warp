@@ -1,20 +1,25 @@
--- Warp Library (@Eternity_Devs)
--- version 1.0.14
 --!strict
---!native
---!optimize 2
-local Index = require(script.Index)
+--@EternityDev
+local Remote = {}
 
-return {
-	Server = Index.Server,
-	Client = Index.Client,
-	fromServerArray = Index.fromServerArray,
-	fromClientArray = Index.fromClientArray,
-	
-	OnSpamSignal = Index.OnSpamSignal,
+if game.RunService:IsServer() then
+	if not script:FindFirstChild("Event") then
+		Instance.new("RemoteEvent", script).Name = "Event"
+	end
+	if not script:FindFirstChild("Function") then
+		Instance.new("RemoteFunction", script).Name = "Function"
+	end
+end
 
-	Signal = Index.Signal,
-	fromSignalArray = Index.fromSignalArray,
+local Client = require("@self/Client")
+local Server = require("@self/Server")
 
-	buffer = Index.buffer,
-}
+Remote.Client = function()
+	return Client
+end
+
+Remote.Server = function()
+	return Server
+end
+
+return Remote :: typeof(Remote)
