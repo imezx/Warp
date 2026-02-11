@@ -1,6 +1,14 @@
 --!native
 --!optimize 2
 --@EternityDev
+export type Writer = {
+	buf: buffer,
+	cursor: number,
+	capacity: number,
+	refs: {any},
+}
+
+local DEFAULT_CAPACITY: number = 64
 
 -- 0x00-0x7F: + fixint (0-127) - single byte
 -- 0x80-0x9F: - fixint (-32 to -1) - single byte
@@ -57,6 +65,39 @@ local T_RAY = 0xF0
 local T_COLSEQ = 0xF2 -- ColorSequence
 local T_NUMSEQ = 0xF3 -- NumberSequence
 
+local TYPED_READERS = {
+	[1] = function(b, o) return buffer.readu8(b, o), o + 1 end,
+	[2] = function(b, o) return buffer.readi8(b, o), o + 1 end,
+	[3] = function(b, o) return buffer.readu16(b, o), o + 2 end,
+	[4] = function(b, o) return buffer.readi16(b, o), o + 2 end,
+	[5] = function(b, o) return buffer.readu32(b, o), o + 4 end,
+	[6] = function(b, o) return buffer.readi32(b, o), o + 4 end,
+	[7] = function(b, o) return buffer.readf32(b, o), o + 4 end,
+	[8] = function(b, o) return buffer.readf64(b, o), o + 8 end,
+}
+
+local F16_MANTISSA_BITS = 1024
+local F16_DENORM do
+	F16_DENORM = table.create(1024)
+	F16_DENORM[1] = 0
+	for m = 1, 1023 do
+		F16_DENORM[m + 1] = math.ldexp(m / F16_MANTISSA_BITS, -14)
+	end
+end
+local F16_EXP2 do
+	F16_EXP2 = table.create(31)
+	for e = 1, 30 do
+		F16_EXP2[e] = math.ldexp(1, e - 15)
+	end
+end
+local F16_NORM_MANTISSA do
+	F16_NORM_MANTISSA = table.create(1024)
+	for m = 0, 1023 do
+		F16_NORM_MANTISSA[m + 1] = 1 + m / F16_MANTISSA_BITS
+	end
+end
+local F32TOF16_SUBNORM_POW2 = { 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024 }
+
 local function f32ToF16(value: number): number
 	if value ~= value then return 0x7E00 end
 	if value == math.huge then return 0x7C00 end
@@ -74,14 +115,15 @@ local function f32ToF16(value: number): number
 
 	if exponent <= 0 then
 		if exponent < -10 then return sign end
-		mantissa = math.floor(mantissa * bit32.lshift(1, 10 + exponent) + 0.5)
+		local scale = F32TOF16_SUBNORM_POW2[10 + exponent] or bit32.lshift(1, 10 + exponent)
+		mantissa = math.floor(mantissa * scale + 0.5)
 		return bit32.bor(sign, mantissa)
 	elseif exponent >= 31 then
 		return bit32.bor(sign, 0x7C00)
 	end
 
-	mantissa = math.floor((mantissa * 2 - 1) * 1024 + 0.5)
-	if mantissa == 1024 then
+	mantissa = math.floor((mantissa * 2 - 1) * F16_MANTISSA_BITS + 0.5)
+	if mantissa == F16_MANTISSA_BITS then
 		mantissa = 0
 		exponent += 1
 		if exponent >= 31 then return bit32.bor(sign, 0x7C00) end
@@ -96,11 +138,11 @@ local function f16ToF32(bits: number): number
 
 	local value: number
 	if exponent == 0 then
-		value = mantissa == 0 and 0 or math.ldexp(mantissa / 1024, -14)
+		value = mantissa == 0 and 0 or (F16_DENORM[mantissa + 1] or math.ldexp(mantissa / 1024, -14))
 	elseif exponent == 31 then
 		value = mantissa == 0 and math.huge or 0/0
 	else
-		value = math.ldexp(1 + mantissa / 1024, exponent - 15)
+		value = F16_NORM_MANTISSA[mantissa + 1] * F16_EXP2[exponent]
 	end
 
 	return sign ~= 0 and -value or value
@@ -135,15 +177,6 @@ local function readVarUInt(buf: buffer, offset: number): (number, number)
 	until byte < 0x80
 	return value, offset
 end
-
-export type Writer = {
-	buf: buffer,
-	cursor: number,
-	capacity: number,
-	refs: {any},
-}
-
-local DEFAULT_CAPACITY = 128
 
 local function createWriter(capacity: number?): Writer
 	local cap = capacity or DEFAULT_CAPACITY
@@ -476,23 +509,23 @@ local function packCFrame(w: Writer, cf: CFrame)
 	local maxPos = math.max(math.abs(px), math.abs(py), math.abs(pz))
 
 	-- f16
-    if maxPos < 65000 and (maxPos > 0.00006 or maxPos == 0) then
-        wByte(w, T_CFRAME_F16)
-        wF16(w, px)
-        wF16(w, py)
-        wF16(w, pz)
-        wF16(w, rx)
-        wF16(w, ry)
-        wF16(w, rz)
-    else
-        wByte(w, T_CFRAME)
-        wF32(w, px)
-        wF32(w, py)
-        wF32(w, pz)
-        wF32(w, rx)
-        wF32(w, ry)
-        wF32(w, rz)
-    end
+	if maxPos < 65000 and (maxPos > 0.00006 or maxPos == 0) then
+		wByte(w, T_CFRAME_F16)
+		wF16(w, px)
+		wF16(w, py)
+		wF16(w, pz)
+		wF16(w, rx)
+		wF16(w, ry)
+		wF16(w, rz)
+	else
+		wByte(w, T_CFRAME)
+		wF32(w, px)
+		wF32(w, py)
+		wF32(w, pz)
+		wF32(w, rx)
+		wF32(w, ry)
+		wF32(w, rz)
+	end
 end
 
 local function packColor3(w: Writer, c: Color3)
@@ -605,17 +638,6 @@ packValue = function(w: Writer, v: any): ()
 		error(`Unsupported type: {t}`)
 	end
 end
-
-local TYPED_READERS = {
-	[1] = function(b, o) return buffer.readu8(b, o), o + 1 end,
-	[2] = function(b, o) return buffer.readi8(b, o), o + 1 end,
-	[3] = function(b, o) return buffer.readu16(b, o), o + 2 end,
-	[4] = function(b, o) return buffer.readi16(b, o), o + 2 end,
-	[5] = function(b, o) return buffer.readu32(b, o), o + 4 end,
-	[6] = function(b, o) return buffer.readi32(b, o), o + 4 end,
-	[7] = function(b, o) return buffer.readf32(b, o), o + 4 end,
-	[8] = function(b, o) return buffer.readf64(b, o), o + 8 end,
-}
 
 local function readF16(b: buffer, o: number): number
 	return f16ToF32(buffer.readu16(b, o))
