@@ -7,7 +7,7 @@ local RunService = game:GetService("RunService")
 local Thread = require("./Thread")
 local Buffer = require("./Buffer")
 local Event: RemoteEvent = script.Parent:WaitForChild("Event")
-local Function: RemoteFunction = script.Parent:WaitForChild("Function")
+local UnreliableEvent: UnreliableRemoteEvent = script.Parent:WaitForChild("UnreliableEvent")
 local deltaT: number, cycle: number = 0, 1 / 61
 local writer: Buffer.Writer = Buffer.createWriter()
 
@@ -17,10 +17,11 @@ type Connection = {
 }
 type Event = {
 	remote: string,
-	fn: (Player, ...any?) -> (...any?),
+	fn: (Player, ...any?) -> ...any?,
 }
 
 local queueEvent: { { any } } = {}
+local queueUnreliableEvent: { { any } } = {}
 local eventListeners: { Event } = {}
 local eventSchemas: { [string]: Buffer.SchemaType } = {}
 
@@ -31,7 +32,7 @@ Client.useSchema = function(remoteName: string, schema: Buffer.SchemaType)
 	eventSchemas[remoteName] = schema
 end
 
-Client.Connect = function(remoteName: string, fn: (Player, ...any?) -> (...any?)): Connection
+Client.Connect = function(remoteName: string, fn: (Player, ...any?) -> ...any?): Connection
 	local detail = {
 		remote = remoteName,
 		fn = fn,
@@ -40,7 +41,9 @@ Client.Connect = function(remoteName: string, fn: (Player, ...any?) -> (...any?)
 	return {
 		Connected = true,
 		Disconnect = function(self: Connection)
-			if not self.Connected then return end
+			if not self.Connected then
+				return
+			end
 			self.Connected = false
 			local idx = table.find(eventListeners, detail)
 			if idx then
@@ -64,7 +67,7 @@ end
 Client.Wait = function(remoteName: string): (number, ...any?)
 	local thread, t = coroutine.running(), os.clock()
 	Client.Once(remoteName, function(...: any?)
-		task.spawn(thread, os.clock()-t, ...)
+		task.spawn(thread, os.clock() - t, ...)
 	end)
 	return coroutine.yield()
 end
@@ -81,10 +84,10 @@ Client.Destroy = function(remoteName: string)
 	Client.DisconnectAll(remoteName)
 end
 
-Client.Fire = function(remoteName: string, ...: any?)
-	table.insert(queueEvent, {
+Client.Fire = function(remoteName: string, reliable: boolean, ...: any?)
+	table.insert(reliable and queueEvent or queueUnreliableEvent, {
 		remoteName,
-		{ ... } :: any
+		{ ... } :: any,
 	})
 end
 
@@ -101,72 +104,110 @@ Client.Invoke = function(remoteName: string, timeout: number?, ...: any?): ...an
 		task.spawn(pending, nil)
 		pendingInvokes[id] = nil
 	end)
-
 	table.insert(queueEvent, {
 		"\0",
-		{ remoteName, id, { ... } :: any } :: any
+		{ remoteName, id, { ... } :: any } :: any,
 	})
 	return coroutine.yield()
 end
 
 if RunService:IsClient() then
-	Event.OnClientEvent:Connect(function(b: buffer, ref: { Instance? })
-		if type(b) ~= "buffer" then return end
+	local function processIncoming(b: buffer, ref: { Instance }?, handleInvokes: boolean)
+		if type(b) ~= "buffer" then
+			return
+		end
 		local contents = Buffer.readEvents(b, ref, eventSchemas)
 		for _, content in contents do
 			local remote = content[1]
 			local content = content[2]
-			if remote == "\1" then
-				local id = content[1]
-				local results = content[2]
-				local pending = pendingInvokes[id]
-				if pending then
-					task.spawn(pending :: any, table.unpack(results))
-					pendingInvokes[id] = nil
-				end
-				continue
-			end
-			if #eventListeners == 0 then continue end
-			if remote == "\0" then
-				local remoteName = content[1]
-				local id = content[2]
-				local args = content[3]
-				for _, connection in eventListeners do
-					if connection.remote == remoteName then
-						Thread(function()
-							local results = { connection.fn(table.unpack(args)) }
-							table.insert(queueEvent, {
-								"\1",
-								{ id, results } :: any
-							})
-						end)
-						break
+			if handleInvokes then
+				if remote == "\1" then
+					local id = content[1]
+					local results = content[2]
+					local pending = pendingInvokes[id]
+					if pending then
+						task.spawn(pending :: any, table.unpack(results))
+						pendingInvokes[id] = nil
 					end
+					continue
 				end
+				if remote == "\0" then
+					if #eventListeners == 0 then
+						continue
+					end
+					local remoteName = content[1]
+					local id = content[2]
+					local args = content[3]
+					for _, connection in eventListeners do
+						if connection.remote == remoteName then
+							Thread(function()
+								local results = { connection.fn(table.unpack(args)) }
+								table.insert(queueEvent, {
+									"\1",
+									{ id, results } :: any,
+								})
+							end)
+							break
+						end
+					end
+					continue
+				end
+			end
+			if #eventListeners == 0 then
 				continue
 			end
 			for _, connection in eventListeners do
-				if connection.remote ~= remote then continue end
+				if connection.remote ~= remote then
+					continue
+				end
 				Thread(connection.fn, table.unpack(content))
 			end
 		end
+	end
+
+	Event.OnClientEvent:Connect(function(b: buffer, ref: { Instance }?)
+		processIncoming(b, ref, true)
 	end)
+
+	UnreliableEvent.OnClientEvent:Connect(function(b: buffer, ref: { Instance }?)
+		processIncoming(b, ref, false)
+	end)
+
 	RunService.PostSimulation:Connect(function(d: number)
 		deltaT += d
-		if deltaT < cycle then return end
-		deltaT = 0
-		if #queueEvent == 0 then return end
-		Buffer.writeEvents(writer, queueEvent, eventSchemas)
-		do
-			local buf, ref = Buffer.buildWithRefs(writer)
-			Buffer.reset(writer)
-			if not ref or #ref == 0 then
-				Event:FireServer(buf)
-			else
-				Event:FireServer(buf, ref)
-			end
+		if deltaT < cycle then
+			return
 		end
-		table.clear(queueEvent)
+		deltaT = 0
+
+		-- reliable
+		if #queueEvent > 0 then
+			Buffer.writeEvents(writer, queueEvent, eventSchemas)
+			do
+				local buf, ref = Buffer.buildWithRefs(writer)
+				Buffer.reset(writer)
+				if not ref or #ref == 0 then
+					Event:FireServer(buf)
+				else
+					Event:FireServer(buf, ref)
+				end
+			end
+			table.clear(queueEvent)
+		end
+		-- unreliable
+		if #queueUnreliableEvent > 0 then
+			Buffer.writeEvents(writer, queueUnreliableEvent, eventSchemas)
+			do
+				local buf, ref = Buffer.buildWithRefs(writer)
+				Buffer.reset(writer)
+				if not ref or #ref == 0 then
+					UnreliableEvent:FireServer(buf)
+				else
+					UnreliableEvent:FireServer(buf, ref)
+				end
+			end
+			table.clear(queueUnreliableEvent)
+		end
 	end)
 end
 

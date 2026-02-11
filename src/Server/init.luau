@@ -8,7 +8,7 @@ local RunService = game:GetService("RunService")
 local Thread = require("./Thread")
 local Buffer = require("./Buffer")
 local Event: RemoteEvent = script.Parent:WaitForChild("Event")
-local Function: RemoteFunction = script.Parent:WaitForChild("Function")
+local UnreliableEvent: UnreliableRemoteEvent = script.Parent:WaitForChild("UnreliableEvent")
 local deltaT: number, cycle: number = 0, 1 / 61
 local writer: Buffer.Writer = Buffer.createWriter()
 
@@ -18,10 +18,13 @@ type Connection = {
 }
 type Event = {
 	remote: string,
-	fn: (Player, ...any?) -> (...any?),
+	fn: (Player, ...any?) -> ...any?,
 }
 
 local queueEvent: {
+	[Player]: { { any } },
+} = {}
+local queueUnreliableEvent: {
 	[Player]: { { any } },
 } = {}
 local eventListeners: { Event } = {}
@@ -35,7 +38,7 @@ Server.useSchema = function(remoteName: string, schema: Buffer.SchemaType)
 	eventSchemas[remoteName] = schema
 end
 
-Server.Connect = function(remoteName: string, fn: (Player, ...any?) -> (...any?)): Connection
+Server.Connect = function(remoteName: string, fn: (Player, ...any?) -> ...any?): Connection
 	local detail = {
 		remote = remoteName,
 		fn = fn,
@@ -44,7 +47,9 @@ Server.Connect = function(remoteName: string, fn: (Player, ...any?) -> (...any?)
 	return {
 		Connected = true,
 		Disconnect = function(self: Connection)
-			if not self.Connected then return end
+			if not self.Connected then
+				return
+			end
 			self.Connected = false
 			local idx = table.find(eventListeners, detail)
 			if idx then
@@ -68,7 +73,7 @@ end
 Server.Wait = function(remoteName: string): (number, ...any?)
 	local thread, t = coroutine.running(), os.clock()
 	Server.Once(remoteName, function(...: any?)
-		task.spawn(thread, os.clock()-t, ...)
+		task.spawn(thread, os.clock() - t, ...)
 	end)
 	return coroutine.yield()
 end
@@ -86,12 +91,13 @@ Server.Destroy = function(remoteName: string)
 end
 
 Server.Fire = function(remoteName: string, reliable: boolean, player: Player, ...: any?)
-	if not queueEvent[player] then
-		queueEvent[player] = {} :: any
+	local targetQueue = reliable and queueEvent or queueUnreliableEvent
+	if not targetQueue[player] then
+		targetQueue[player] = {} :: any
 	end
-	table.insert(queueEvent[player], {
+	table.insert(targetQueue[player], {
 		remoteName,
-		{ ... } :: any
+		{ ... } :: any,
 	})
 end
 
@@ -114,62 +120,93 @@ Server.Invoke = function(remoteName: string, player: Player, timeout: number?, .
 		task.spawn(pending, nil)
 		pendingInvokes[id] = nil
 	end)
-
+	if not queueEvent[player] then
+		queueEvent[player] = {} :: any
+	end
 	table.insert(queueEvent[player], {
 		"\0",
-		{ remoteName, id, { ... } :: any } :: any
+		{ remoteName, id, { ... } :: any } :: any,
 	})
 	return coroutine.yield()
 end
 
 if RunService:IsServer() then
-	Event.OnServerEvent:Connect(function(player: Player, b: buffer, ref: { Instance? })
-		if type(b) ~= "buffer" then return end
+	local function processIncoming(player: Player, b: buffer, ref: { Instance }?, handleInvokes: boolean)
+		if type(b) ~= "buffer" then
+			return
+		end
 		local contents = Buffer.readEvents(b, ref, eventSchemas)
 		for _, content in contents do
 			local remote = content[1]
 			local content = content[2]
-			if remote == "\1" then
-				local id = content[1]
-				local results = content[2]
-				local pending = pendingInvokes[id]
-				if pending then
-					task.spawn(pending :: any, table.unpack(results))
-					pendingInvokes[id] = nil
-				end
-				continue
-			end
-			if #eventListeners == 0 then continue end
-			if remote == "\0" then
-				local remoteName = content[1]
-				local id = content[2]
-				local args = content[3]
-				for _, connection in eventListeners do
-					if connection.remote == remoteName then
-						Thread(function()
-							local results = { connection.fn(table.unpack(args)) }
-							table.insert(queueEvent[player], {
-								"\1",
-								{ id, results } :: any
-							})
-						end)
-						break
+			if handleInvokes then
+				if remote == "\1" then
+					local id = content[1]
+					local results = content[2]
+					local pending = pendingInvokes[id]
+					if pending then
+						task.spawn(pending :: any, table.unpack(results))
+						pendingInvokes[id] = nil
 					end
+					continue
 				end
+				if remote == "\0" then
+					if #eventListeners == 0 then
+						continue
+					end
+					local remoteName = content[1]
+					local id = content[2]
+					local args = content[3]
+					for _, connection in eventListeners do
+						if connection.remote == remoteName then
+							Thread(function()
+								local results = { connection.fn(table.unpack(args)) }
+								if not queueEvent[player] then
+									queueEvent[player] = {} :: any
+								end
+								table.insert(queueEvent[player], {
+									"\1",
+									{ id, results } :: any,
+								})
+							end)
+							break
+						end
+					end
+					continue
+				end
+			end
+			if #eventListeners == 0 then
 				continue
 			end
 			for _, connection in eventListeners do
-				if connection.remote ~= remote then continue end
+				if connection.remote ~= remote then
+					continue
+				end
 				Thread(connection.fn, player, table.unpack(content))
 			end
 		end
+	end
+
+	Event.OnServerEvent:Connect(function(player: Player, b: buffer, ref: { Instance }?)
+		processIncoming(player, b, ref, true)
 	end)
+
+	UnreliableEvent.OnServerEvent:Connect(function(player: Player, b: buffer, ref: { Instance }?)
+		processIncoming(player, b, ref, false)
+	end)
+
 	RunService.PostSimulation:Connect(function(d: number)
 		deltaT += d
-		if deltaT < cycle then return end
+		if deltaT < cycle then
+			return
+		end
 		deltaT = 0
+
+		-- reliable
 		for player: Player, content in queueEvent do
-			if #content == 0 or player.Parent ~= Players then continue end
+			if #content == 0 or player.Parent ~= Players then
+				continue
+			end
 			Buffer.writeEvents(writer, content, eventSchemas)
 			do
 				local buf, ref = Buffer.buildWithRefs(writer)
@@ -182,13 +219,34 @@ if RunService:IsServer() then
 			end
 			table.clear(queueEvent[player])
 		end
+		-- unreliable
+		for player: Player, content in queueUnreliableEvent do
+			if #content == 0 or player.Parent ~= Players then
+				continue
+			end
+			Buffer.writeEvents(writer, content, eventSchemas)
+			do
+				local buf, ref = Buffer.buildWithRefs(writer)
+				Buffer.reset(writer)
+				if not ref or #ref == 0 then
+					UnreliableEvent:FireClient(player, buf)
+				else
+					UnreliableEvent:FireClient(player, buf, ref)
+				end
+			end
+			table.clear(queueUnreliableEvent[player])
+		end
 	end)
+
 	local function onAdded(player: Player)
 		if not table.find(players_ready, player) then
 			table.insert(players_ready, player)
 		end
 		if not queueEvent[player] then
 			queueEvent[player] = {} :: any
+		end
+		if not queueUnreliableEvent[player] then
+			queueUnreliableEvent[player] = {} :: any
 		end
 	end
 	Players.PlayerAdded:Connect(onAdded)
@@ -197,6 +255,10 @@ if RunService:IsServer() then
 		if queueEvent[player] then
 			table.clear(queueEvent[player])
 			queueEvent[player] = nil
+		end
+		if queueUnreliableEvent[player] then
+			table.clear(queueUnreliableEvent[player])
+			queueUnreliableEvent[player] = nil
 		end
 	end)
 	for _, player: Player in ipairs(Players:GetPlayers()) do

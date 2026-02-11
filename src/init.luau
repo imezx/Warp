@@ -6,6 +6,9 @@ if game.RunService:IsServer() then
 	if not script:FindFirstChild("Event") then
 		Instance.new("RemoteEvent", script).Name = "Event"
 	end
+	if not script:FindFirstChild("UnreliableEvent") then
+		Instance.new("UnreliableRemoteEvent", script).Name = "UnreliableEvent"
+	end
 	if not script:FindFirstChild("Function") then
 		Instance.new("RemoteFunction", script).Name = "Function"
 	end
