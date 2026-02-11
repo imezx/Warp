@@ -163,7 +163,7 @@ end
 
 local function wU16(w: Writer, v: number)
 	ensureSpace(w, 2)
-	buffer.writei16(w.buf, w.cursor, v)
+	buffer.writeu16(w.buf, w.cursor, v)
 	w.cursor += 2
 end
 
@@ -210,6 +210,7 @@ local function wString(w: Writer, s: string)
 end
 
 local packValue: (w: Writer, v: any) -> ()
+local F32_TEST_BUF = buffer.create(4)
 
 local function packNumber(w: Writer, n: number)
 	if n ~= n then
@@ -267,9 +268,8 @@ local function packNumber(w: Writer, n: number)
 		end
 	else
 		-- float: try f32 first
-		local testBuf = buffer.create(4)
-		buffer.writef32(testBuf, 0, n)
-		local f32Val = buffer.readf32(testBuf, 0)
+		buffer.writef32(F32_TEST_BUF, 0, n)
+		local f32Val = buffer.readf32(F32_TEST_BUF, 0)
 
 		if f32Val == n or math.abs(n - f32Val) < math.abs(n) * 1e-6 then
 			wByte(w, T_F32)
@@ -1262,13 +1262,24 @@ local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any,
 	end
 end
 
+local packerCache = setmetatable({}, { __mode = "k" })
+local readerCache = setmetatable({}, { __mode = "k" })
+
 local function packStrict(w: Writer, s: SchemaType, v: any)
-	local packer = compilePacker(s)
+	local packer = packerCache[s]
+	if not packer then
+		packer = compilePacker(s)
+		packerCache[s] = packer
+	end
 	packer(w, v)
 end
 
 local function readStrict(buf: buffer, cursor: number, s: SchemaType, refs: { any }?): (any, number)
-	local reader = compileReader(s)
+	local reader = readerCache[s]
+	if not reader then
+		reader = compileReader(s)
+		readerCache[s] = reader
+	end
 	return reader(buf, cursor, refs)
 end
 
