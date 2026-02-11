@@ -23,9 +23,16 @@
   --vp-c-danger-2: var(--vp-c-red-2);
   --vp-c-danger-3: var(--vp-c-red-3);
   --vp-c-danger-soft: var(--vp-c-red-soft);
-}
 
-:root {
+  --glass-nav-bg: rgba(255, 255, 255, 0.8); 
+  --glass-sidebar-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  --glass-blur: 0.4rem;
+  
+  --vp-c-bg: #ffffff; 
+  --vp-c-bg-alt: #f8f9fa;
+
   --vp-button-brand-border: transparent;
   --vp-button-brand-text: var(--vp-c-white);
   --vp-button-brand-bg: var(--vp-c-brand-3);
@@ -35,37 +42,110 @@
   --vp-button-brand-active-border: transparent;
   --vp-button-brand-active-text: var(--vp-c-white);
   --vp-button-brand-active-bg: var(--vp-c-brand-1);
-}
 
-:root {
   --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: -webkit-linear-gradient(120deg,
-      #fe5234 30%,
-      #fe9934);
-
-  --vp-home-hero-image-background-image: linear-gradient(-45deg,
-      #fe5234 50%,
-      #fe9934 50%);
+  --vp-home-hero-name-background: -webkit-linear-gradient(120deg, #fe5234 30%, #fe9934);
+  --vp-home-hero-image-background-image: linear-gradient(-45deg, #fe5234 50%, #fe9934 50%);
   --vp-home-hero-image-filter: blur(40px);
-}
 
-@media (min-width: 640px) {
-  :root {
-    --vp-home-hero-image-filter: blur(56px);
-  }
-}
-
-@media (min-width: 960px) {
-  :root {
-    --vp-home-hero-image-filter: blur(72px);
-  }
-}
-
-:root {
   --vp-custom-block-tip-border: transparent;
   --vp-custom-block-tip-text: var(--vp-c-text-1);
   --vp-custom-block-tip-bg: var(--vp-c-brand-soft);
   --vp-custom-block-tip-code-bg: var(--vp-c-brand-soft);
+}
+
+.dark {
+  --glass-nav-bg: rgba(22, 22, 24, 0.7);
+  --glass-sidebar-bg: rgba(22, 22, 24, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+  
+  --vp-c-bg: #0f0f11;
+  --vp-c-bg-alt: #161618;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  top: 0; 
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  pointer-events: none;
+  
+  background: 
+    radial-gradient(circle at 100% 0%, rgba(254, 82, 52, 0.08), transparent 40%),
+    radial-gradient(circle at 0% 100%, rgba(79, 70, 229, 0.08), transparent 40%);
+}
+
+.dark body::before {
+  background: 
+    radial-gradient(circle at 90% 10%, rgba(79, 70, 229, 0.15), transparent 50%),
+    radial-gradient(circle at 10% 90%, rgba(254, 82, 52, 0.08), transparent 40%);
+}
+
+.VPNav {
+  background-color: transparent !important;
+}
+
+.VPNavBar {
+  background-color: var(--glass-nav-bg) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.VPNav .content-body {
+  background-color: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+
+.VPSidebar {
+  background-color: var(--glass-sidebar-bg) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-right: 1px solid var(--glass-border);
+}
+
+.VPLocalNav {
+  background-color: var(--glass-nav-bg) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.VPNavScreen {
+  background-color: var(--vp-c-bg) !important; 
+}
+
+.VPMenu {
+  background-color: var(--glass-nav-bg) !important;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: 12px;
+}
+
+.VPNavBarTitle {
+  background-color: transparent !important;
+}
+
+.VPNavBar .divider {
+  opacity: 0.2;
+}
+
+
+@media (min-width: 640px) {
+  :root { --vp-home-hero-image-filter: blur(56px); }
+}
+@media (min-width: 960px) {
+  :root { --vp-home-hero-image-filter: blur(72px); }
 }
 
 .DocSearch {
@@ -73,10 +153,10 @@
 }
 
 .VPNavBarTitle .title {
-  /* background: linear-gradient(120deg,
-      #6034fe 30%,
-      #fe3434);
-  -webkit-text-fill-color: transparent;
-  -webkit-background-clip: text; */
   color: rgb(255, 153, 0);
+  transition: color 0.25s;
+}
+
+.VPHero .name {
+  text-shadow: 0 0 40px rgba(254, 82, 52, 0.3);
 }
