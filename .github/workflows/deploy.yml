@@ -28,19 +28,11 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Cache Bun packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock', '**/bun.lockb', '**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
       - name: Install dependencies
-        run: bun ci
+        run: bun install
 
       - name: Build
         run: |
