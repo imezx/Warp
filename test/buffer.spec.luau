@@ -649,6 +649,35 @@ return function()
 			expect(decoded).to.equal(longStr)
 		end)
 
+		-- varuint
+
+		it("encodes/decodes varUInt", function()
+			local b = buffer.create(16)
+			local endOffset = Buffer.writeVarUInt(b, 0, 300)
+			local v, newOffset = Buffer.readVarUInt(b, 0)
+			expect(v).to.equal(300)
+			expect(newOffset).to.equal(endOffset)
+		end)
+
+		it("encodes/decodes varUInt edge values", function()
+			local testValues = { 0, 1, 127, 128, 16383, 16384, 2097151, 2097152 }
+			local b = buffer.create(64)
+			for _, val in testValues do
+				local endOff = Buffer.writeVarUInt(b, 0, val)
+				local decoded, readOff = Buffer.readVarUInt(b, 0)
+				expect(decoded).to.equal(val)
+				expect(readOff).to.equal(endOff)
+			end
+		end)
+
+		it("varUIntSize returns correct sizes", function()
+			expect(Buffer.varUIntSize(0)).to.equal(1)
+			expect(Buffer.varUIntSize(127)).to.equal(1)
+			expect(Buffer.varUIntSize(128)).to.equal(2)
+			expect(Buffer.varUIntSize(16383)).to.equal(2)
+			expect(Buffer.varUIntSize(16384)).to.equal(3)
+		end)
+
 		-- schema: primitives
 
 		it("schema round-trips u8", function()

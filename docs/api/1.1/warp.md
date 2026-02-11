@@ -2,7 +2,7 @@
 
 The public main of the Warp library.
 ::: warning
-This version (1.1.x) are not backward compatible with 1.0.x.
+This version (1.1.x) is not backward compatible with 1.0.x.
 :::
 
 ## `.Server` <Badge type="tip" text="server side" />
