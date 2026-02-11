@@ -947,7 +947,314 @@ local function reset(w: Writer)
 	table.clear(w.refs)
 end
 
+local Schema = {}
+export type SchemaType = { type: string, [any]: any }
+
+Schema.u8 = { type = "u8" }
+Schema.i8 = { type = "i8" }
+Schema.u16 = { type = "u16" }
+Schema.i16 = { type = "i16" }
+Schema.u32 = { type = "u32" }
+Schema.i32 = { type = "i32" }
+Schema.f32 = { type = "f32" }
+Schema.f64 = { type = "f64" }
+Schema.f16 = { type = "f16" }
+Schema.boolean = { type = "boolean" }
+Schema.vector3 = { type = "vector3" }
+Schema.vector2 = { type = "vector2" }
+Schema.cframe = { type = "cframe" }
+Schema.color3 = { type = "color3" }
+Schema.instance = { type = "instance" }
+Schema.string = { type = "string" }
+
+function Schema.optional(item: SchemaType): SchemaType
+	return { type = "optional", item = item }
+end
+
+function Schema.array(item: SchemaType): SchemaType
+	return { type = "array", item = item }
+end
+
+function Schema.map(key: SchemaType, value: SchemaType): SchemaType
+	return { type = "map", key = key, value = value }
+end
+
+function Schema.struct(fields: {[string]: SchemaType}): SchemaType
+	local orderedFields = {}
+	for k, v in fields do
+		table.insert(orderedFields, { key = k, schema = v })
+	end
+	table.sort(orderedFields, function(a, b) return a.key < b.key end)
+	return { type = "struct", fields = orderedFields }
+end
+
+local function compilePacker(s: SchemaType): (Writer, any) -> ()
+	if s.type == "u8" then return wByte end
+	if s.type == "i8" then return function(w, v) ensureSpace(w, 1) buffer.writei8(w.buf, w.cursor, v) w.cursor += 1 end end
+	if s.type == "u16" then return wU16 end
+	if s.type == "i16" then return wI16 end
+	if s.type == "u32" then return wU32 end
+	if s.type == "i32" then return wI32 end
+	if s.type == "f32" then return wF32 end
+	if s.type == "f64" then return wF64 end
+	if s.type == "f16" then return wF16 end
+	if s.type == "boolean" then return function(w, v) wByte(w, v and 1 or 0) end end
+	if s.type == "string" then return function(w, v) local len = #v wVarUInt(w, len) wString(w, v) end end
+	
+	if s.type == "vector3" then return function(w, v) wF16(w, f32ToF16(v.X)) wF16(w, f32ToF16(v.Y)) wF16(w, f32ToF16(v.Z)) end end
+	if s.type == "vector2" then return function(w, v) wF16(w, f32ToF16(v.X)) wF16(w, f32ToF16(v.Y)) end end
+	
+	if s.type == "cframe" then 
+		return function(w, v) 
+			local pos = v.Position
+			local rx, ry, rz = v:ToOrientation()
+			wF16(w, f32ToF16(pos.X)) wF16(w, f32ToF16(pos.Y)) wF16(w, f32ToF16(pos.Z))
+			wF16(w, f32ToF16(rx)) wF16(w, f32ToF16(ry)) wF16(w, f32ToF16(rz))
+		end 
+	end
+
+	if s.type == "color3" then 
+		return function(w, v) 
+			wByte(w, math.clamp(math.round(v.R * 255), 0, 255))
+			wByte(w, math.clamp(math.round(v.G * 255), 0, 255))
+			wByte(w, math.clamp(math.round(v.B * 255), 0, 255))
+		end 
+	end
+
+	if s.type == "instance" then return function(w, v) table.insert(w.refs, v) wVarUInt(w, #w.refs) end end
+	
+	if s.type == "struct" then
+		local fields = {}
+		for _, field in s.fields do
+			table.insert(fields, { key = field.key, packer = compilePacker(field.schema) })
+		end
+		return function(w, v)
+			if type(v) ~= "table" then error(`Expected table for struct, got {typeof(v)}`) end
+			for _, f in fields do
+				local val = v[f.key]
+				if val == nil then error(`Schema Error: Missing required field '{f.key}'`) end
+				f.packer(w, val)
+			end
+		end
+	end
+
+	if s.type == "array" then
+		local itemPacker = compilePacker(s.item)
+		return function(w, v)
+			if type(v) ~= "table" then error(`Expected table for array, got {typeof(v)}`) end
+			local len = #v
+			wVarUInt(w, len)
+			for i = 1, len do
+				if v[i] == nil then error(`Schema Error: Array item at index {i} is nil`) end
+				itemPacker(w, v[i])
+			end
+		end
+	end
+
+	if s.type == "map" then
+		local keyPacker = compilePacker(s.key)
+		local valPacker = compilePacker(s.value)
+		return function(w, v)
+			local count = 0
+			for _ in v do count += 1 end
+			wVarUInt(w, count)
+			for k, val in v do
+				keyPacker(w, k)
+				valPacker(w, val)
+			end
+		end
+	end
+
+	if s.type == "optional" then
+		local itemPacker = compilePacker(s.item)
+		return function(w, v)
+			if v == nil then
+				wByte(w, 0)
+			else
+				wByte(w, 1)
+				itemPacker(w, v)
+			end
+		end
+	end
+
+	return function() end
+end
+
+local function compileReader(s: SchemaType): (buffer, number, {any}?) -> (any, number)
+	if s.type == "u8" then return function(b, c) return buffer.readu8(b, c), c + 1 end end
+	if s.type == "i8" then return function(b, c) return buffer.readi8(b, c), c + 1 end end
+	if s.type == "u16" then return function(b, c) return buffer.readu16(b, c), c + 2 end end
+	if s.type == "i16" then return function(b, c) return buffer.readi16(b, c), c + 2 end end
+	if s.type == "u32" then return function(b, c) return buffer.readu32(b, c), c + 4 end end
+	if s.type == "i32" then return function(b, c) return buffer.readi32(b, c), c + 4 end end
+	if s.type == "f32" then return function(b, c) return buffer.readf32(b, c), c + 4 end end
+	if s.type == "f64" then return function(b, c) return buffer.readf64(b, c), c + 8 end end
+	if s.type == "f16" then return function(b, c) return f16ToF32(buffer.readu16(b, c)), c + 2 end end
+	if s.type == "boolean" then return function(b, c) return buffer.readu8(b, c) ~= 0, c + 1 end end
+	if s.type == "string" then 
+		return function(b, c) 
+			local len; len, c = readVarUInt(b, c) 
+			return buffer.readstring(b, c, len), c + len 
+		end 
+	end
+	if s.type == "vector3" then
+		return function(b, c)
+			local x = f16ToF32(buffer.readu16(b, c))
+			local y = f16ToF32(buffer.readu16(b, c + 2))
+			local z = f16ToF32(buffer.readu16(b, c + 4))
+			return Vector3.new(x, y, z), c + 6
+		end
+	end
+	
+	if s.type == "vector2" then
+		return function(b, c)
+			local x = f16ToF32(buffer.readu16(b, c))
+			local y = f16ToF32(buffer.readu16(b, c + 2))
+			return Vector2.new(x, y), c + 4
+		end
+	end
+	
+	if s.type == "color3" then
+		return function(b, c)
+			local r = buffer.readu8(b, c)
+			local g = buffer.readu8(b, c + 1)
+			local bVal = buffer.readu8(b, c + 2)
+			return Color3.fromRGB(r, g, bVal), c + 3
+		end
+	end
+
+	if s.type == "cframe" then
+		return function(b, c)
+			local px = f16ToF32(buffer.readu16(b, c))
+			local py = f16ToF32(buffer.readu16(b, c + 2))
+			local pz = f16ToF32(buffer.readu16(b, c + 4))
+			local rx = f16ToF32(buffer.readu16(b, c + 6))
+			local ry = f16ToF32(buffer.readu16(b, c + 8))
+			local rz = f16ToF32(buffer.readu16(b, c + 10))
+			return CFrame.new(px, py, pz) * CFrame.fromOrientation(rx, ry, rz), c + 12
+		end
+	end
+	if s.type == "instance" then
+		return function(b, c, refs)
+			local idx; idx, c = readVarUInt(b, c)
+			return refs and refs[idx] or nil, c
+		end
+	end
+	
+	if s.type == "struct" then
+		local fields = {}
+		for _, field in s.fields do
+			table.insert(fields, { key = field.key, reader = compileReader(field.schema) })
+		end
+		return function(b, c, refs)
+			local obj = {}
+			for _, f in fields do
+				obj[f.key], c = f.reader(b, c, refs)
+			end
+			return obj, c
+		end
+	end
+
+	if s.type == "array" then
+		local itemReader = compileReader(s.item)
+		return function(b, c, refs)
+			local len; len, c = readVarUInt(b, c)
+			local arr = table.create(len)
+			for i = 1, len do
+				arr[i], c = itemReader(b, c, refs)
+			end
+			return arr, c
+		end
+	end
+
+	if s.type == "map" then
+		local keyReader = compileReader(s.key)
+		local valReader = compileReader(s.value)
+		return function(b, c, refs)
+			local count; count, c = readVarUInt(b, c)
+			local map = {}
+			for _ = 1, count do
+				local k, val
+				k, c = keyReader(b, c, refs)
+				val, c = valReader(b, c, refs)
+				map[k] = val
+			end
+			return map, c
+		end
+	end
+
+	if s.type == "optional" then
+		local itemReader = compileReader(s.item)
+		return function(b, c, refs)
+			local exists = buffer.readu8(b, c) ~= 0
+			c += 1
+			if exists then
+				return itemReader(b, c, refs)
+			else
+				return nil, c
+			end
+		end
+	end
+	
+	return function(_, c) return nil, c end
+end
+
+local function packStrict(w: Writer, s: SchemaType, v: any)
+	local packer = compilePacker(s)
+	packer(w, v)
+end
+
+local function readStrict(buf: buffer, cursor: number, s: SchemaType, refs: { any }?): (any, number)
+	local reader = compileReader(s)
+	return reader(buf, cursor, refs)
+end
+
+local function writeEvents(w: Writer, events: {{any}}, schemas: {[string]: SchemaType})
+	local count = #events
+	wVarUInt(w, count)
+	for _, event in events do
+		local remote = event[1]
+		local args = event[2]
+		packValue(w, remote)
+		local schema = schemas[remote]
+		if schema then
+			packStrict(w, schema, args[1])
+		else
+			packValue(w, args)
+		end
+	end
+end
+
+local function readEvents(buf: buffer, refs: {any}?, schemas: {[string]: SchemaType}): {{any}}
+	local pos, count = 0
+	count, pos = readVarUInt(buf, pos)
+	local events = table.create(count)
+	for i = 1, count do
+		local remote
+		remote, pos = unpackValue(buf, pos, refs)
+		local args
+		local schema = schemas[remote]
+		if schema then
+			local val
+			val, pos = readStrict(buf, pos, schema, refs)
+			args = {val}
+		else
+			args, pos = unpackValue(buf, pos, refs)
+		end
+		events[i] = {remote, args}
+	end
+	return events
+end
+
 local BufferSerdes = {}
+
+BufferSerdes.writeEvents = writeEvents
+BufferSerdes.readEvents = readEvents
+BufferSerdes.Schema = Schema
+BufferSerdes.compilePacker = compilePacker
+BufferSerdes.compileReader = compileReader
+BufferSerdes.packStrict = packStrict
+BufferSerdes.readStrict = readStrict
 
 function BufferSerdes.write(data: any): (buffer, {any}?)
 	local w = createWriter()
@@ -982,5 +1289,9 @@ BufferSerdes.writeVarUInt = writeVarUInt
 BufferSerdes.readVarUInt = readVarUInt
 BufferSerdes.f32ToF16 = f32ToF16
 BufferSerdes.f16ToF32 = f16ToF32
+
+BufferSerdes.readTagged = unpackValue
+BufferSerdes.packTagged = packValue
+BufferSerdes.unpack = unpackValue
 
 return BufferSerdes :: typeof(BufferSerdes)

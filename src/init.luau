@@ -13,13 +13,29 @@ end
 
 local Client = require("@self/Client")
 local Server = require("@self/Server")
+local Buffer = require("@self/Buffer")
 
+--[[
+	@class Remote
+	@client
+]]
 Remote.Client = function()
 	return Client
 end
 
+--[[
+	@class Remote
+	@server
+]]
 Remote.Server = function()
 	return Server
 end
+
+--[[
+	@class Remote
+	@schema
+	define a schema for your data and use a strict packing
+]]
+Remote.Buffer = Buffer
 
 return Remote :: typeof(Remote)
