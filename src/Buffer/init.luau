@@ -42,16 +42,13 @@ local T_MAP8 = 0xD8
 local T_MAP16 = 0xD9
 local T_MAPVAR = 0xDA
 
--- Typed arrays (homogeneous, no per-element tags)
+-- typed arrays (homogeneous, no per-element tags)
 local T_TYPED_ARR = 0xDB
 local T_BUFFER = 0xDC
 
 local T_VEC3 = 0xE0 -- f32 precision (12 bytes)
-local T_VEC3_F16 = 0xE1 -- f16 precision (6 bytes)
 local T_VEC2 = 0xE2 -- f32 precision (8 bytes)
-local T_VEC2_F16 = 0xE3 -- f16 precision (4 bytes)
 local T_CFRAME = 0xE4 -- f32 pos + f32 orient (24 bytes)
-local T_CFRAME_F16 = 0xE5 -- f16 pos + f16 orient (12 bytes)
 local T_COLOR3 = 0xE6 -- RGB bytes (3 bytes)
 local T_COLOR3_F = 0xE7 -- RGB floats (12 bytes)
 local T_BRICKCOLOR = 0xE8
@@ -92,93 +89,6 @@ local TYPED_READERS = {
 		return buffer.readf64(b, o), o + 8
 	end,
 }
-
-local F16_MANTISSA_BITS = 1024
-local F16_DENORM
-do
-	F16_DENORM = table.create(1024)
-	F16_DENORM[1] = 0
-	for m = 1, 1023 do
-		F16_DENORM[m + 1] = math.ldexp(m / F16_MANTISSA_BITS, -14)
-	end
-end
-local F16_EXP2
-do
-	F16_EXP2 = table.create(31)
-	for e = 1, 30 do
-		F16_EXP2[e] = math.ldexp(1, e - 15)
-	end
-end
-local F16_NORM_MANTISSA
-do
-	F16_NORM_MANTISSA = table.create(1024)
-	for m = 0, 1023 do
-		F16_NORM_MANTISSA[m + 1] = 1 + m / F16_MANTISSA_BITS
-	end
-end
-local F32TOF16_SUBNORM_POW2 = { 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024 }
-
-local function f32ToF16(value: number): number
-	if value ~= value then
-		return 0x7E00
-	end
-	if value == math.huge then
-		return 0x7C00
-	end
-	if value == -math.huge then
-		return 0xFC00
-	end
-	if value == 0 then
-		return 0
-	end
-
-	local sign = 0
-	if value < 0 then
-		sign = 0x8000
-		value = -value
-	end
-
-	local mantissa, exponent = math.frexp(value)
-	exponent += 14
-
-	if exponent <= 0 then
-		if exponent < -10 then
-			return sign
-		end
-		local scale = F32TOF16_SUBNORM_POW2[10 + exponent] or bit32.lshift(1, 10 + exponent)
-		mantissa = math.floor(mantissa * scale + 0.5)
-		return bit32.bor(sign, mantissa)
-	elseif exponent >= 31 then
-		return bit32.bor(sign, 0x7C00)
-	end
-
-	mantissa = math.floor((mantissa * 2 - 1) * F16_MANTISSA_BITS + 0.5)
-	if mantissa == F16_MANTISSA_BITS then
-		mantissa = 0
-		exponent += 1
-		if exponent >= 31 then
-			return bit32.bor(sign, 0x7C00)
-		end
-	end
-	return bit32.bor(sign, bit32.lshift(exponent, 10), mantissa)
-end
-
-local function f16ToF32(bits: number): number
-	local sign = bit32.band(bits, 0x8000)
-	local exponent = bit32.band(bit32.rshift(bits, 10), 0x1F)
-	local mantissa = bit32.band(bits, 0x03FF)
-
-	local value: number
-	if exponent == 0 then
-		value = mantissa == 0 and 0 or (F16_DENORM[mantissa + 1] or math.ldexp(mantissa / 1024, -14))
-	elseif exponent == 31 then
-		value = mantissa == 0 and math.huge or 0 / 0
-	else
-		value = F16_NORM_MANTISSA[mantissa + 1] * F16_EXP2[exponent]
-	end
-
-	return sign ~= 0 and -value or value
-end
 
 local function varUIntSize(value: number): number
 	if value < 0x80 then
@@ -285,12 +195,6 @@ local function wF64(w: Writer, v: number)
 	ensureSpace(w, 8)
 	buffer.writef64(w.buf, w.cursor, v)
 	w.cursor += 8
-end
-
-local function wF16(w: Writer, v: number)
-	ensureSpace(w, 2)
-	buffer.writei16(w.buf, w.cursor, f32ToF16(v))
-	w.cursor += 2
 end
 
 local function wVarUInt(w: Writer, v: number)
@@ -530,62 +434,29 @@ local function packTable(w: Writer, t: { [any]: any })
 end
 
 local function packVector3(w: Writer, v: Vector3)
-	local x, y, z = v.X, v.Y, v.Z
-	local maxComp = math.max(math.abs(x), math.abs(y), math.abs(z))
-
-	if maxComp < 65000 and maxComp > 0.00006 then
-		wByte(w, T_VEC3_F16)
-		wF16(w, x)
-		wF16(w, y)
-		wF16(w, z)
-	else
-		wByte(w, T_VEC3)
-		wF16(w, f32ToF16(x))
-		wF16(w, f32ToF16(y))
-		wF16(w, f32ToF16(z))
-	end
+	wByte(w, T_VEC3)
+	wF32(w, v.X)
+	wF32(w, v.Y)
+	wF32(w, v.Z)
 end
 
 local function packVector2(w: Writer, v: Vector2)
-	local x, y = v.X, v.Y
-	local maxComp = math.max(math.abs(x), math.abs(y))
-
-	if maxComp < 65000 and maxComp > 0.00006 then
-		wByte(w, T_VEC2_F16)
-		wF16(w, x)
-		wF16(w, y)
-	else
-		wByte(w, T_VEC2)
-		wF16(w, f32ToF16(x))
-		wF16(w, f32ToF16(y))
-	end
+	wByte(w, T_VEC2)
+	wF32(w, v.X)
+	wF32(w, v.Y)
 end
 
 local function packCFrame(w: Writer, cf: CFrame)
 	local pos = cf.Position
 	local rx, ry, rz = cf:ToOrientation()
 
-	local px, py, pz = pos.X, pos.Y, pos.Z
-	local maxPos = math.max(math.abs(px), math.abs(py), math.abs(pz))
-
-	-- f16
-	if maxPos < 65000 and (maxPos > 0.00006 or maxPos == 0) then
-		wByte(w, T_CFRAME_F16)
-		wF16(w, px)
-		wF16(w, py)
-		wF16(w, pz)
-		wF16(w, rx)
-		wF16(w, ry)
-		wF16(w, rz)
-	else
-		wByte(w, T_CFRAME)
-		wF16(w, f32ToF16(px))
-		wF16(w, f32ToF16(py))
-		wF16(w, f32ToF16(pz))
-		wF16(w, f32ToF16(rx))
-		wF16(w, f32ToF16(ry))
-		wF16(w, f32ToF16(rz))
-	end
+	wByte(w, T_CFRAME)
+	wF32(w, pos.X)
+	wF32(w, pos.Y)
+	wF32(w, pos.Z)
+	wF32(w, rx)
+	wF32(w, ry)
+	wF32(w, rz)
 end
 
 local function packColor3(w: Writer, c: Color3)
@@ -593,9 +464,9 @@ local function packColor3(w: Writer, c: Color3)
 
 	if r > 1 or g > 1 or b > 1 then
 		wByte(w, T_COLOR3_F)
-		wF16(w, r)
-		wF16(w, g)
-		wF16(w, b)
+		wF32(w, r)
+		wF32(w, g)
+		wF32(w, b)
 	else
 		wByte(w, T_COLOR3)
 		wByte(w, math.clamp(math.round(r * 255), 0, 255))
@@ -646,40 +517,40 @@ packValue = function(w: Writer, v: any): ()
 	elseif t == "UDim2" then
 		local X, Y = v.X, v.Y
 		wByte(w, T_UDIM2)
-		wF16(w, X.Scale)
-		wI16(w, X.Offset)
-		wF16(w, Y.Scale)
-		wI16(w, Y.Offset)
+		wF32(w, X.Scale)
+		wI32(w, X.Offset)
+		wF32(w, Y.Scale)
+		wI32(w, Y.Offset)
 	elseif t == "UDim" then
 		wByte(w, T_UDIM)
-		wF16(w, v.Scale)
-		wI16(w, v.Offset)
+		wF32(w, v.Scale)
+		wI32(w, v.Offset)
 	elseif t == "Rect" then
 		local Min, Max = v.Min, v.Max
 		wByte(w, T_RECT)
-		wF16(w, Min.X)
-		wF16(w, Min.Y)
-		wF16(w, Max.X)
-		wF16(w, Max.Y)
+		wF32(w, Min.X)
+		wF32(w, Min.Y)
+		wF32(w, Max.X)
+		wF32(w, Max.Y)
 	elseif t == "NumberRange" then
 		wByte(w, T_NUMBERRANGE)
-		wF16(w, v.Min)
-		wF16(w, v.Max)
+		wF32(w, v.Min)
+		wF32(w, v.Max)
 	elseif t == "Ray" then
 		local Origin, Direction = v.Origin, v.Direction
 		wByte(w, T_RAY)
-		wF16(w, Origin.X)
-		wF16(w, Origin.Y)
-		wF16(w, Origin.Z)
-		wF16(w, Direction.X)
-		wF16(w, Direction.Y)
-		wF16(w, Direction.Z)
+		wF32(w, Origin.X)
+		wF32(w, Origin.Y)
+		wF32(w, Origin.Z)
+		wF32(w, Direction.X)
+		wF32(w, Direction.Y)
+		wF32(w, Direction.Z)
 	elseif t == "ColorSequence" then
 		local keypoints = v.Keypoints
 		wByte(w, T_COLSEQ)
 		wByte(w, #keypoints)
 		for _, kp in keypoints do
-			wF16(w, kp.Time)
+			wF32(w, kp.Time)
 			local c = kp.Value
 			wByte(w, math.clamp(math.round(c.R * 255), 0, 255))
 			wByte(w, math.clamp(math.round(c.G * 255), 0, 255))
@@ -690,9 +561,9 @@ packValue = function(w: Writer, v: any): ()
 		wByte(w, T_NUMSEQ)
 		wByte(w, #keypoints)
 		for _, kp in keypoints do
-			wF16(w, kp.Time)
-			wF16(w, kp.Value)
-			wF16(w, kp.Envelope)
+			wF32(w, kp.Time)
+			wF32(w, kp.Value)
+			wF32(w, kp.Envelope)
 		end
 	elseif t == "buffer" then
 		wByte(w, T_BUFFER)
@@ -704,10 +575,6 @@ packValue = function(w: Writer, v: any): ()
 	else
 		error(`Unsupported type: {t}`)
 	end
-end
-
-local function readF16(b: buffer, o: number): number
-	return f16ToF32(buffer.readu16(b, o))
 end
 
 local unpackValue: (buf: buffer, pos: number, refs: { any }?) -> (any, number)
@@ -885,48 +752,28 @@ unpackValue = function(buf: buffer, pos: number, refs: { any }?): (any, number)
 
 	-- Vector3
 	if t == T_VEC3 then
-		local x = f16ToF32(buffer.readf16(buf, pos))
-		local y = f16ToF32(buffer.readf16(buf, pos + 2))
-		local z = f16ToF32(buffer.readf16(buf, pos + 4))
-		return Vector3.new(x, y, z), pos + 6
-	end
-	if t == T_VEC3_F16 then
-		local x = readF16(buf, pos)
-		local y = readF16(buf, pos + 2)
-		local z = readF16(buf, pos + 4)
-		return Vector3.new(x, y, z), pos + 6
+		local x = buffer.readf32(buf, pos)
+		local y = buffer.readf32(buf, pos + 4)
+		local z = buffer.readf32(buf, pos + 8)
+		return Vector3.new(x, y, z), pos + 12
 	end
 
 	-- Vector2
 	if t == T_VEC2 then
-		local x = f16ToF32(buffer.readf16(buf, pos))
-		local y = f16ToF32(buffer.readf16(buf, pos + 2))
-		return Vector2.new(x, y), pos + 4
-	end
-	if t == T_VEC2_F16 then
-		local x = readF16(buf, pos)
-		local y = readF16(buf, pos + 2)
-		return Vector2.new(x, y), pos + 4
+		local x = buffer.readf32(buf, pos)
+		local y = buffer.readf32(buf, pos + 4)
+		return Vector2.new(x, y), pos + 8
 	end
 
 	-- CFrame
 	if t == T_CFRAME then
-		local px = f16ToF32(buffer.readf16(buf, pos))
-		local py = f16ToF32(buffer.readf16(buf, pos + 2))
-		local pz = f16ToF32(buffer.readf16(buf, pos + 4))
-		local rx = f16ToF32(buffer.readf16(buf, pos + 6))
-		local ry = f16ToF32(buffer.readf16(buf, pos + 8))
-		local rz = f16ToF32(buffer.readf16(buf, pos + 10))
-		return CFrame.new(px, py, pz) * CFrame.fromOrientation(rx, ry, rz), pos + 12
-	end
-	if t == T_CFRAME_F16 then
-		local px = readF16(buf, pos)
-		local py = readF16(buf, pos + 2)
-		local pz = readF16(buf, pos + 4)
-		local rx = readF16(buf, pos + 6)
-		local ry = readF16(buf, pos + 8)
-		local rz = readF16(buf, pos + 10)
-		return CFrame.new(px, py, pz) * CFrame.fromOrientation(rx, ry, rz), pos + 12
+		local px = buffer.readf32(buf, pos)
+		local py = buffer.readf32(buf, pos + 4)
+		local pz = buffer.readf32(buf, pos + 8)
+		local rx = buffer.readf32(buf, pos + 12)
+		local ry = buffer.readf32(buf, pos + 16)
+		local rz = buffer.readf32(buf, pos + 20)
+		return CFrame.new(px, py, pz) * CFrame.fromOrientation(rx, ry, rz), pos + 24
 	end
 
 	-- Color3
@@ -937,10 +784,10 @@ unpackValue = function(buf: buffer, pos: number, refs: { any }?): (any, number)
 		return Color3.fromRGB(r, g, b), pos + 3
 	end
 	if t == T_COLOR3_F then
-		local r = buffer.readf16(buf, pos)
-		local g = buffer.readf16(buf, pos + 2)
-		local b = buffer.readf16(buf, pos + 4)
-		return Color3.new(r, g, b), pos + 6
+		local r = buffer.readf32(buf, pos)
+		local g = buffer.readf32(buf, pos + 4)
+		local b = buffer.readf32(buf, pos + 8)
+		return Color3.new(r, g, b), pos + 12
 	end
 
 	if t == T_BRICKCOLOR then
@@ -970,37 +817,37 @@ unpackValue = function(buf: buffer, pos: number, refs: { any }?): (any, number)
 	end
 
 	if t == T_UDIM2 then
-		local xs = buffer.readf16(buf, pos)
-		local xo = buffer.readi16(buf, pos + 2)
-		local ys = buffer.readf16(buf, pos + 4)
-		local yo = buffer.readi16(buf, pos + 6)
-		return UDim2.new(xs, xo, ys, yo), pos + 8
+		local xs = buffer.readf32(buf, pos)
+		local xo = buffer.readi32(buf, pos + 4)
+		local ys = buffer.readf32(buf, pos + 8)
+		local yo = buffer.readi32(buf, pos + 12)
+		return UDim2.new(xs, xo, ys, yo), pos + 16
 	end
 
 	if t == T_UDIM then
-		local s = buffer.readf16(buf, pos)
-		local o = buffer.readi16(buf, pos + 2)
-		return UDim.new(s, o), pos + 4
+		local s = buffer.readf32(buf, pos)
+		local o = buffer.readi32(buf, pos + 4)
+		return UDim.new(s, o), pos + 8
 	end
 
 	if t == T_RECT then
 		return Rect.new(
-			buffer.readf16(buf, pos),
-			buffer.readf16(buf, pos + 2),
-			buffer.readf16(buf, pos + 4),
-			buffer.readf16(buf, pos + 6)
+			buffer.readf32(buf, pos),
+			buffer.readf32(buf, pos + 4),
+			buffer.readf32(buf, pos + 8),
+			buffer.readf32(buf, pos + 12)
 		),
-			pos + 8
+			pos + 16
 	end
 
 	if t == T_NUMBERRANGE then
-		return NumberRange.new(buffer.readf16(buf, pos), buffer.readf16(buf, pos + 2)), pos + 4
+		return NumberRange.new(buffer.readf32(buf, pos), buffer.readf32(buf, pos + 4)), pos + 8
 	end
 
 	if t == T_RAY then
 		return Ray.new(
-			Vector3.new(buffer.readf16(buf, pos), buffer.readf16(buf, pos + 2), buffer.readf16(buf, pos + 4)),
-			Vector3.new(buffer.readf16(buf, pos + 6), buffer.readf16(buf, pos + 8), buffer.readf16(buf, pos + 10))
+			Vector3.new(buffer.readf32(buf, pos), buffer.readf32(buf, pos + 4), buffer.readf32(buf, pos + 8)),
+			Vector3.new(buffer.readf32(buf, pos + 12), buffer.readf32(buf, pos + 16), buffer.readf32(buf, pos + 20))
 		),
 			pos + 24
 	end
@@ -1010,12 +857,12 @@ unpackValue = function(buf: buffer, pos: number, refs: { any }?): (any, number)
 		pos += 1
 		local keypoints = table.create(count)
 		for i = 1, count do
-			local time = buffer.readf16(buf, pos)
-			local r = buffer.readu8(buf, pos + 2)
-			local g = buffer.readu8(buf, pos + 3)
-			local b = buffer.readu8(buf, pos + 4)
+			local time = buffer.readf32(buf, pos)
+			local r = buffer.readu8(buf, pos + 4)
+			local g = buffer.readu8(buf, pos + 5)
+			local b = buffer.readu8(buf, pos + 6)
 			keypoints[i] = ColorSequenceKeypoint.new(time, Color3.fromRGB(r, g, b))
-			pos += 5
+			pos += 7
 		end
 		return ColorSequence.new(keypoints), pos
 	end
@@ -1025,11 +872,11 @@ unpackValue = function(buf: buffer, pos: number, refs: { any }?): (any, number)
 		pos += 1
 		local keypoints = table.create(count)
 		for i = 1, count do
-			local time = buffer.readf16(buf, pos)
-			local value = buffer.readf16(buf, pos + 2)
-			local envelope = buffer.readf16(buf, pos + 4)
+			local time = buffer.readf32(buf, pos)
+			local value = buffer.readf32(buf, pos + 4)
+			local envelope = buffer.readf32(buf, pos + 8)
 			keypoints[i] = NumberSequenceKeypoint.new(time, value, envelope)
-			pos += 6
+			pos += 12
 		end
 		return NumberSequence.new(keypoints), pos
 	end
@@ -1073,7 +920,6 @@ Schema.u32 = { type = "u32" }
 Schema.i32 = { type = "i32" }
 Schema.f32 = { type = "f32" }
 Schema.f64 = { type = "f64" }
-Schema.f16 = { type = "f16" }
 Schema.boolean = { type = "boolean" }
 Schema.vector3 = { type = "vector3" }
 Schema.vector2 = { type = "vector2" }
@@ -1099,10 +945,9 @@ function Schema.struct(fields: { [string]: SchemaType }): SchemaType
 	for k, v in fields do
 		table.insert(orderedFields, { key = k, schema = v })
 	end
-	-- should we sort the fields?
-	-- table.sort(orderedFields, function(a, b)
-	-- 	return a.key < b.key
-	-- end)
+	table.sort(orderedFields, function(a, b)
+		return a.key < b.key
+	end)
 	return { type = "struct", fields = orderedFields }
 end
 
@@ -1135,9 +980,6 @@ local function compilePacker(s: SchemaType): (Writer, any) -> ()
 	if s.type == "f64" then
 		return wF64
 	end
-	if s.type == "f16" then
-		return wF16
-	end
 	if s.type == "boolean" then
 		return function(w, v)
 			wByte(w, v and 1 or 0)
@@ -1153,15 +995,15 @@ local function compilePacker(s: SchemaType): (Writer, any) -> ()
 
 	if s.type == "vector3" then
 		return function(w, v)
-			wF16(w, f32ToF16(v.X))
-			wF16(w, f32ToF16(v.Y))
-			wF16(w, f32ToF16(v.Z))
+			wF32(w, v.X)
+			wF32(w, v.Y)
+			wF32(w, v.Z)
 		end
 	end
 	if s.type == "vector2" then
 		return function(w, v)
-			wF16(w, f32ToF16(v.X))
-			wF16(w, f32ToF16(v.Y))
+			wF32(w, v.X)
+			wF32(w, v.Y)
 		end
 	end
 
@@ -1169,12 +1011,12 @@ local function compilePacker(s: SchemaType): (Writer, any) -> ()
 		return function(w, v)
 			local pos = v.Position
 			local rx, ry, rz = v:ToOrientation()
-			wF16(w, f32ToF16(pos.X))
-			wF16(w, f32ToF16(pos.Y))
-			wF16(w, f32ToF16(pos.Z))
-			wF16(w, f32ToF16(rx))
-			wF16(w, f32ToF16(ry))
-			wF16(w, f32ToF16(rz))
+			wF32(w, pos.X)
+			wF32(w, pos.Y)
+			wF32(w, pos.Z)
+			wF32(w, rx)
+			wF32(w, ry)
+			wF32(w, rz)
 		end
 	end
 
@@ -1301,11 +1143,6 @@ local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any,
 			return buffer.readf64(b, c), c + 8
 		end
 	end
-	if s.type == "f16" then
-		return function(b, c)
-			return f16ToF32(buffer.readu16(b, c)), c + 2
-		end
-	end
 	if s.type == "boolean" then
 		return function(b, c)
 			return buffer.readu8(b, c) ~= 0, c + 1
@@ -1320,18 +1157,18 @@ local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any,
 	end
 	if s.type == "vector3" then
 		return function(b, c)
-			local x = f16ToF32(buffer.readu16(b, c))
-			local y = f16ToF32(buffer.readu16(b, c + 2))
-			local z = f16ToF32(buffer.readu16(b, c + 4))
-			return Vector3.new(x, y, z), c + 6
+			local x = buffer.readf32(b, c)
+			local y = buffer.readf32(b, c + 4)
+			local z = buffer.readf32(b, c + 8)
+			return Vector3.new(x, y, z), c + 12
 		end
 	end
 
 	if s.type == "vector2" then
 		return function(b, c)
-			local x = f16ToF32(buffer.readu16(b, c))
-			local y = f16ToF32(buffer.readu16(b, c + 2))
-			return Vector2.new(x, y), c + 4
+			local x = buffer.readf32(b, c)
+			local y = buffer.readf32(b, c + 4)
+			return Vector2.new(x, y), c + 8
 		end
 	end
 
@@ -1346,13 +1183,13 @@ local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any,
 
 	if s.type == "cframe" then
 		return function(b, c)
-			local px = f16ToF32(buffer.readu16(b, c))
-			local py = f16ToF32(buffer.readu16(b, c + 2))
-			local pz = f16ToF32(buffer.readu16(b, c + 4))
-			local rx = f16ToF32(buffer.readu16(b, c + 6))
-			local ry = f16ToF32(buffer.readu16(b, c + 8))
-			local rz = f16ToF32(buffer.readu16(b, c + 10))
-			return CFrame.new(px, py, pz) * CFrame.fromOrientation(rx, ry, rz), c + 12
+			local px = buffer.readf32(b, c)
+			local py = buffer.readf32(b, c + 4)
+			local pz = buffer.readf32(b, c + 8)
+			local rx = buffer.readf32(b, c + 12)
+			local ry = buffer.readf32(b, c + 16)
+			local rz = buffer.readf32(b, c + 20)
+			return CFrame.new(px, py, pz) * CFrame.fromOrientation(rx, ry, rz), c + 24
 		end
 	end
 	if s.type == "instance" then
@@ -1452,7 +1289,7 @@ local function writeEvents(w: Writer, events: { { any } }, schemas: { [string]: 
 end
 
 local function readEvents(buf: buffer, refs: { any }?, schemas: { [string]: SchemaType }): { { any } }
-	local pos, count = 0
+	local pos, count = 0, 0
 	count, pos = readVarUInt(buf, pos)
 	local events = table.create(count)
 	for i = 1, count do
@@ -1513,8 +1350,6 @@ BufferSerdes.reset = reset
 BufferSerdes.varUIntSize = varUIntSize
 BufferSerdes.writeVarUInt = writeVarUInt
 BufferSerdes.readVarUInt = readVarUInt
-BufferSerdes.f32ToF16 = f32ToF16
-BufferSerdes.f16ToF32 = f16ToF32
 
 BufferSerdes.readTagged = unpackValue
 BufferSerdes.packTagged = packValue
