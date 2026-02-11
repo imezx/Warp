@@ -176,7 +176,7 @@ end
 
 local function wU32(w: Writer, v: number)
 	ensureSpace(w, 4)
-	buffer.writei32(w.buf, w.cursor, v)
+	buffer.writeu32(w.buf, w.cursor, v)
 	w.cursor += 4
 end
 
@@ -272,7 +272,8 @@ local function packNumber(w: Writer, n: number)
 		buffer.writef32(F32_TEST_BUF, 0, n)
 		local f32Val = buffer.readf32(F32_TEST_BUF, 0)
 
-		if f32Val == n or math.abs(n - f32Val) < math.abs(n) * 1e-6 then
+		-- if f32Val == n or math.abs(n - f32Val) < math.abs(n) * 1e-6 then -- since the test is failing so
+		if f32Val == n then
 			wByte(w, T_F32)
 			wF32(w, n)
 		else
@@ -1581,5 +1582,10 @@ BufferSerdes.reset = reset
 BufferSerdes.readTagged = unpackValue
 BufferSerdes.packTagged = packValue
 BufferSerdes.unpack = unpackValue
+
+-- for internal test
+BufferSerdes.writeVarUInt = writeVarUInt
+BufferSerdes.readVarUInt = readVarUInt
+BufferSerdes.varUIntSize = varUIntSize
 
 return BufferSerdes :: typeof(BufferSerdes)
