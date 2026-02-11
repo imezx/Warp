@@ -540,9 +540,9 @@ local function packVector3(w: Writer, v: Vector3)
 		wF16(w, z)
 	else
 		wByte(w, T_VEC3)
-		wF32(w, x)
-		wF32(w, y)
-		wF32(w, z)
+		wF16(w, f32ToF16(x))
+		wF16(w, f32ToF16(y))
+		wF16(w, f32ToF16(z))
 	end
 end
 
@@ -556,8 +556,8 @@ local function packVector2(w: Writer, v: Vector2)
 		wF16(w, y)
 	else
 		wByte(w, T_VEC2)
-		wF32(w, x)
-		wF32(w, y)
+		wF16(w, f32ToF16(x))
+		wF16(w, f32ToF16(y))
 	end
 end
 
@@ -579,12 +579,12 @@ local function packCFrame(w: Writer, cf: CFrame)
 		wF16(w, rz)
 	else
 		wByte(w, T_CFRAME)
-		wF32(w, px)
-		wF32(w, py)
-		wF32(w, pz)
-		wF32(w, rx)
-		wF32(w, ry)
-		wF32(w, rz)
+		wF16(w, f32ToF16(px))
+		wF16(w, f32ToF16(py))
+		wF16(w, f32ToF16(pz))
+		wF16(w, f32ToF16(rx))
+		wF16(w, f32ToF16(ry))
+		wF16(w, f32ToF16(rz))
 	end
 end
 
@@ -593,9 +593,9 @@ local function packColor3(w: Writer, c: Color3)
 
 	if r > 1 or g > 1 or b > 1 then
 		wByte(w, T_COLOR3_F)
-		wF32(w, r)
-		wF32(w, g)
-		wF32(w, b)
+		wF16(w, r)
+		wF16(w, g)
+		wF16(w, b)
 	else
 		wByte(w, T_COLOR3)
 		wByte(w, math.clamp(math.round(r * 255), 0, 255))
@@ -646,40 +646,40 @@ packValue = function(w: Writer, v: any): ()
 	elseif t == "UDim2" then
 		local X, Y = v.X, v.Y
 		wByte(w, T_UDIM2)
-		wF32(w, X.Scale)
-		wI32(w, X.Offset)
-		wF32(w, Y.Scale)
-		wI32(w, Y.Offset)
+		wF16(w, X.Scale)
+		wI16(w, X.Offset)
+		wF16(w, Y.Scale)
+		wI16(w, Y.Offset)
 	elseif t == "UDim" then
 		wByte(w, T_UDIM)
-		wF32(w, v.Scale)
-		wI32(w, v.Offset)
+		wF16(w, v.Scale)
+		wI16(w, v.Offset)
 	elseif t == "Rect" then
 		local Min, Max = v.Min, v.Max
 		wByte(w, T_RECT)
-		wF32(w, Min.X)
-		wF32(w, Min.Y)
-		wF32(w, Max.X)
-		wF32(w, Max.Y)
+		wF16(w, Min.X)
+		wF16(w, Min.Y)
+		wF16(w, Max.X)
+		wF16(w, Max.Y)
 	elseif t == "NumberRange" then
 		wByte(w, T_NUMBERRANGE)
-		wF32(w, v.Min)
-		wF32(w, v.Max)
+		wF16(w, v.Min)
+		wF16(w, v.Max)
 	elseif t == "Ray" then
 		local Origin, Direction = v.Origin, v.Direction
 		wByte(w, T_RAY)
-		wF32(w, Origin.X)
-		wF32(w, Origin.Y)
-		wF32(w, Origin.Z)
-		wF32(w, Direction.X)
-		wF32(w, Direction.Y)
-		wF32(w, Direction.Z)
+		wF16(w, Origin.X)
+		wF16(w, Origin.Y)
+		wF16(w, Origin.Z)
+		wF16(w, Direction.X)
+		wF16(w, Direction.Y)
+		wF16(w, Direction.Z)
 	elseif t == "ColorSequence" then
 		local keypoints = v.Keypoints
 		wByte(w, T_COLSEQ)
 		wByte(w, #keypoints)
 		for _, kp in keypoints do
-			wF32(w, kp.Time)
+			wF16(w, kp.Time)
 			local c = kp.Value
 			wByte(w, math.clamp(math.round(c.R * 255), 0, 255))
 			wByte(w, math.clamp(math.round(c.G * 255), 0, 255))
@@ -690,9 +690,9 @@ packValue = function(w: Writer, v: any): ()
 		wByte(w, T_NUMSEQ)
 		wByte(w, #keypoints)
 		for _, kp in keypoints do
-			wF32(w, kp.Time)
-			wF32(w, kp.Value)
-			wF32(w, kp.Envelope)
+			wF16(w, kp.Time)
+			wF16(w, kp.Value)
+			wF16(w, kp.Envelope)
 		end
 	elseif t == "buffer" then
 		wByte(w, T_BUFFER)
@@ -885,10 +885,10 @@ unpackValue = function(buf: buffer, pos: number, refs: { any }?): (any, number)
 
 	-- Vector3
 	if t == T_VEC3 then
-		local x = buffer.readf32(buf, pos)
-		local y = buffer.readf32(buf, pos + 4)
-		local z = buffer.readf32(buf, pos + 8)
-		return Vector3.new(x, y, z), pos + 12
+		local x = f16ToF32(buffer.readf16(buf, pos))
+		local y = f16ToF32(buffer.readf16(buf, pos + 2))
+		local z = f16ToF32(buffer.readf16(buf, pos + 4))
+		return Vector3.new(x, y, z), pos + 6
 	end
 	if t == T_VEC3_F16 then
 		local x = readF16(buf, pos)
@@ -899,9 +899,9 @@ unpackValue = function(buf: buffer, pos: number, refs: { any }?): (any, number)
 
 	-- Vector2
 	if t == T_VEC2 then
-		local x = buffer.readf32(buf, pos)
-		local y = buffer.readf32(buf, pos + 4)
-		return Vector2.new(x, y), pos + 8
+		local x = f16ToF32(buffer.readf16(buf, pos))
+		local y = f16ToF32(buffer.readf16(buf, pos + 2))
+		return Vector2.new(x, y), pos + 4
 	end
 	if t == T_VEC2_F16 then
 		local x = readF16(buf, pos)
@@ -911,13 +911,13 @@ unpackValue = function(buf: buffer, pos: number, refs: { any }?): (any, number)
 
 	-- CFrame
 	if t == T_CFRAME then
-		local px = buffer.readf32(buf, pos)
-		local py = buffer.readf32(buf, pos + 4)
-		local pz = buffer.readf32(buf, pos + 8)
-		local rx = buffer.readf32(buf, pos + 12)
-		local ry = buffer.readf32(buf, pos + 16)
-		local rz = buffer.readf32(buf, pos + 20)
-		return CFrame.new(px, py, pz) * CFrame.fromOrientation(rx, ry, rz), pos + 24
+		local px = f16ToF32(buffer.readf16(buf, pos))
+		local py = f16ToF32(buffer.readf16(buf, pos + 2))
+		local pz = f16ToF32(buffer.readf16(buf, pos + 4))
+		local rx = f16ToF32(buffer.readf16(buf, pos + 6))
+		local ry = f16ToF32(buffer.readf16(buf, pos + 8))
+		local rz = f16ToF32(buffer.readf16(buf, pos + 10))
+		return CFrame.new(px, py, pz) * CFrame.fromOrientation(rx, ry, rz), pos + 12
 	end
 	if t == T_CFRAME_F16 then
 		local px = readF16(buf, pos)
@@ -937,10 +937,10 @@ unpackValue = function(buf: buffer, pos: number, refs: { any }?): (any, number)
 		return Color3.fromRGB(r, g, b), pos + 3
 	end
 	if t == T_COLOR3_F then
-		local r = buffer.readf32(buf, pos)
-		local g = buffer.readf32(buf, pos + 4)
-		local b = buffer.readf32(buf, pos + 8)
-		return Color3.new(r, g, b), pos + 12
+		local r = buffer.readf16(buf, pos)
+		local g = buffer.readf16(buf, pos + 2)
+		local b = buffer.readf16(buf, pos + 4)
+		return Color3.new(r, g, b), pos + 6
 	end
 
 	if t == T_BRICKCOLOR then
@@ -970,37 +970,37 @@ unpackValue = function(buf: buffer, pos: number, refs: { any }?): (any, number)
 	end
 
 	if t == T_UDIM2 then
-		local xs = buffer.readf32(buf, pos)
-		local xo = buffer.readi32(buf, pos + 4)
-		local ys = buffer.readf32(buf, pos + 8)
-		local yo = buffer.readi32(buf, pos + 12)
-		return UDim2.new(xs, xo, ys, yo), pos + 16
+		local xs = buffer.readf16(buf, pos)
+		local xo = buffer.readi16(buf, pos + 2)
+		local ys = buffer.readf16(buf, pos + 4)
+		local yo = buffer.readi16(buf, pos + 6)
+		return UDim2.new(xs, xo, ys, yo), pos + 8
 	end
 
 	if t == T_UDIM then
-		local s = buffer.readf32(buf, pos)
-		local o = buffer.readi32(buf, pos + 4)
-		return UDim.new(s, o), pos + 8
+		local s = buffer.readf16(buf, pos)
+		local o = buffer.readi16(buf, pos + 2)
+		return UDim.new(s, o), pos + 4
 	end
 
 	if t == T_RECT then
 		return Rect.new(
-			buffer.readf32(buf, pos),
-			buffer.readf32(buf, pos + 4),
-			buffer.readf32(buf, pos + 8),
-			buffer.readf32(buf, pos + 12)
+			buffer.readf16(buf, pos),
+			buffer.readf16(buf, pos + 2),
+			buffer.readf16(buf, pos + 4),
+			buffer.readf16(buf, pos + 6)
 		),
-			pos + 16
+			pos + 8
 	end
 
 	if t == T_NUMBERRANGE then
-		return NumberRange.new(buffer.readf32(buf, pos), buffer.readf32(buf, pos + 4)), pos + 8
+		return NumberRange.new(buffer.readf16(buf, pos), buffer.readf16(buf, pos + 2)), pos + 4
 	end
 
 	if t == T_RAY then
 		return Ray.new(
-			Vector3.new(buffer.readf32(buf, pos), buffer.readf32(buf, pos + 4), buffer.readf32(buf, pos + 8)),
-			Vector3.new(buffer.readf32(buf, pos + 12), buffer.readf32(buf, pos + 16), buffer.readf32(buf, pos + 20))
+			Vector3.new(buffer.readf16(buf, pos), buffer.readf16(buf, pos + 2), buffer.readf16(buf, pos + 4)),
+			Vector3.new(buffer.readf16(buf, pos + 6), buffer.readf16(buf, pos + 8), buffer.readf16(buf, pos + 10))
 		),
 			pos + 24
 	end
@@ -1010,12 +1010,12 @@ unpackValue = function(buf: buffer, pos: number, refs: { any }?): (any, number)
 		pos += 1
 		local keypoints = table.create(count)
 		for i = 1, count do
-			local time = buffer.readf32(buf, pos)
-			local r = buffer.readu8(buf, pos + 4)
-			local g = buffer.readu8(buf, pos + 5)
-			local b = buffer.readu8(buf, pos + 6)
+			local time = buffer.readf16(buf, pos)
+			local r = buffer.readu8(buf, pos + 2)
+			local g = buffer.readu8(buf, pos + 3)
+			local b = buffer.readu8(buf, pos + 4)
 			keypoints[i] = ColorSequenceKeypoint.new(time, Color3.fromRGB(r, g, b))
-			pos += 7
+			pos += 5
 		end
 		return ColorSequence.new(keypoints), pos
 	end
@@ -1025,11 +1025,11 @@ unpackValue = function(buf: buffer, pos: number, refs: { any }?): (any, number)
 		pos += 1
 		local keypoints = table.create(count)
 		for i = 1, count do
-			local time = buffer.readf32(buf, pos)
-			local value = buffer.readf32(buf, pos + 4)
-			local envelope = buffer.readf32(buf, pos + 8)
+			local time = buffer.readf16(buf, pos)
+			local value = buffer.readf16(buf, pos + 2)
+			local envelope = buffer.readf16(buf, pos + 4)
 			keypoints[i] = NumberSequenceKeypoint.new(time, value, envelope)
-			pos += 12
+			pos += 6
 		end
 		return NumberSequence.new(keypoints), pos
 	end
@@ -1099,9 +1099,10 @@ function Schema.struct(fields: { [string]: SchemaType }): SchemaType
 	for k, v in fields do
 		table.insert(orderedFields, { key = k, schema = v })
 	end
-	table.sort(orderedFields, function(a, b)
-		return a.key < b.key
-	end)
+	-- should we sort the fields?
+	-- table.sort(orderedFields, function(a, b)
+	-- 	return a.key < b.key
+	-- end)
 	return { type = "struct", fields = orderedFields }
 end
 
