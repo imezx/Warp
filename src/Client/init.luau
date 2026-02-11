@@ -112,7 +112,7 @@ end
 if RunService:IsClient() then
 	Event.OnClientEvent:Connect(function(b: buffer, ref: { Instance? })
 		if type(b) ~= "buffer" then return end
-		local contents = Buffer.read(b, ref)
+		local contents = Buffer.readEvents(b, ref, eventSchemas)
 		for _, content in contents do
 			local remote = content[1]
 			local content = content[2]

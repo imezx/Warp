@@ -44,6 +44,7 @@ local T_MAPVAR = 0xDA
 
 -- Typed arrays (homogeneous, no per-element tags)
 local T_TYPED_ARR = 0xDB
+local T_BUFFER = 0xDC
 
 local T_VEC3 = 0xE0 -- f32 precision (12 bytes)
 local T_VEC3_F16 = 0xE1 -- f16 precision (6 bytes)
@@ -634,6 +635,13 @@ packValue = function(w: Writer, v: any): ()
 			wF32(w, kp.Value)
 			wF32(w, kp.Envelope)
 		end
+	elseif t == "buffer" then
+		wByte(w, T_BUFFER)
+		local len = buffer.len(v)
+		wVarUInt(w, len)
+		ensureSpace(w, len)
+		buffer.copy(w.buf, w.cursor, v, 0, len)
+		w.cursor += len
 	else
 		error(`Unsupported type: {t}`)
 	end
@@ -925,6 +933,13 @@ unpackValue = function(buf: buffer, pos: number, refs: {any}?): (any, number)
 			pos += 12
 		end
 		return NumberSequence.new(keypoints), pos
+	end
+
+	if t == T_BUFFER then
+		local len; len, pos = readVarUInt(buf, pos)
+		local b = buffer.create(len)
+		buffer.copy(b, 0, buf, pos, len)
+		return b, pos + len
 	end
 
 	error(`(serdes) unknown type: {t}`)
