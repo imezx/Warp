@@ -897,8 +897,7 @@ unpackValue = function(buf: buffer, pos: number, refs: { any }?): (any, number)
 			buffer.readf32(buf, pos + 4),
 			buffer.readf32(buf, pos + 8),
 			buffer.readf32(buf, pos + 12)
-		),
-			pos + 16
+		), pos + 16
 	end
 
 	if t == T_NUMBERRANGE then
@@ -909,8 +908,7 @@ unpackValue = function(buf: buffer, pos: number, refs: { any }?): (any, number)
 		return Ray.new(
 			Vector3.new(buffer.readf32(buf, pos), buffer.readf32(buf, pos + 4), buffer.readf32(buf, pos + 8)),
 			Vector3.new(buffer.readf32(buf, pos + 12), buffer.readf32(buf, pos + 16), buffer.readf32(buf, pos + 20))
-		),
-			pos + 24
+		), pos + 24
 	end
 
 	if t == T_COLSEQ then
@@ -1013,40 +1011,41 @@ function Schema.struct(fields: { [string]: SchemaType }): SchemaType
 end
 
 local function compilePacker(s: SchemaType): (Writer, any) -> ()
-	if s.type == "u8" then
+	local schema_type = s.type
+	if schema_type == "u8" then
 		return wByte
 	end
-	if s.type == "i8" then
+	if schema_type == "i8" then
 		return function(w, v)
 			ensureSpace(w, 1)
 			buffer.writei8(w.buf, w.cursor, v)
 			w.cursor += 1
 		end
 	end
-	if s.type == "u16" then
+	if schema_type == "u16" then
 		return wU16
 	end
-	if s.type == "i16" then
+	if schema_type == "i16" then
 		return wI16
 	end
-	if s.type == "u32" then
+	if schema_type == "u32" then
 		return wU32
 	end
-	if s.type == "i32" then
+	if schema_type == "i32" then
 		return wI32
 	end
-	if s.type == "f32" then
+	if schema_type == "f32" then
 		return wF32
 	end
-	if s.type == "f64" then
+	if schema_type == "f64" then
 		return wF64
 	end
-	if s.type == "boolean" then
+	if schema_type == "boolean" then
 		return function(w, v)
 			wByte(w, v and 1 or 0)
 		end
 	end
-	if s.type == "string" then
+	if schema_type == "string" then
 		return function(w, v)
 			local len = #v
 			wVarUInt(w, len)
@@ -1054,21 +1053,21 @@ local function compilePacker(s: SchemaType): (Writer, any) -> ()
 		end
 	end
 
-	if s.type == "vector3" then
+	if schema_type == "vector3" then
 		return function(w, v)
 			wF32(w, v.X)
 			wF32(w, v.Y)
 			wF32(w, v.Z)
 		end
 	end
-	if s.type == "vector2" then
+	if schema_type == "vector2" then
 		return function(w, v)
 			wF32(w, v.X)
 			wF32(w, v.Y)
 		end
 	end
 
-	if s.type == "cframe" then
+	if schema_type == "cframe" then
 		return function(w, v)
 			local pos = v.Position
 			local rx, ry, rz = v:ToOrientation()
@@ -1081,7 +1080,7 @@ local function compilePacker(s: SchemaType): (Writer, any) -> ()
 		end
 	end
 
-	if s.type == "color3" then
+	if schema_type == "color3" then
 		return function(w, v)
 			wByte(w, math.clamp(math.round(v.R * 255), 0, 255))
 			wByte(w, math.clamp(math.round(v.G * 255), 0, 255))
@@ -1089,17 +1088,17 @@ local function compilePacker(s: SchemaType): (Writer, any) -> ()
 		end
 	end
 
-	if s.type == "instance" then
+	if schema_type == "instance" then
 		return function(w, v)
 			table.insert(w.refs, v)
 			wVarUInt(w, #w.refs)
 		end
 	end
 
-	if s.type == "struct" then
+	if schema_type == "struct" then
 		local fields = {}
 		local optionalIndices = {} -- tracks which fields are optional
-	
+
 		for idx, field in ipairs(s.fields) do
 			local isOpt = field.schema.type == "optional"
 			table.insert(fields, {
@@ -1111,9 +1110,9 @@ local function compilePacker(s: SchemaType): (Writer, any) -> ()
 				table.insert(optionalIndices, idx)
 			end
 		end
-	
+
 		local numOpt = #optionalIndices
-	
+
 		if numOpt == 0 then
 			return function(w, v)
 				if type(v) ~= "table" then
@@ -1128,14 +1127,14 @@ local function compilePacker(s: SchemaType): (Writer, any) -> ()
 				end
 			end
 		end
-	
+
 		local maskBytes = math.ceil(numOpt / 8)
-	
+
 		return function(w, v)
 			if type(v) ~= "table" then
 				error(`Expected table for struct, got {typeof(v)}`)
 			end
-	
+
 			-- write bitmask for optional fields
 			ensureSpace(w, maskBytes)
 			for i = 0, maskBytes - 1 do
@@ -1153,7 +1152,7 @@ local function compilePacker(s: SchemaType): (Writer, any) -> ()
 				buffer.writeu8(w.buf, w.cursor, byte)
 				w.cursor += 1
 			end
-	
+
 			-- write field values
 			for _, f in fields do
 				local val = v[f.key]
@@ -1171,18 +1170,18 @@ local function compilePacker(s: SchemaType): (Writer, any) -> ()
 		end
 	end
 
-	if s.type == "array" then
+	if schema_type == "array" then
 		local itemSchema = s.item
-		
+
 		-- bitpacking hacks
 		if itemSchema.type == "boolean" then
 			return function(w, v)
 				local len = #v
 				wVarUInt(w, len)
-	
+
 				local numBytes = math.ceil(len / 8)
 				ensureSpace(w, numBytes)
-	
+
 				for i = 0, numBytes - 1 do
 					local byte = 0
 					for bit = 0, 7 do
@@ -1199,7 +1198,7 @@ local function compilePacker(s: SchemaType): (Writer, any) -> ()
 				end
 			end
 		end
-	
+
 		-- regular array
 		local itemPacker = compilePacker(itemSchema)
 		return function(w, v)
@@ -1217,7 +1216,7 @@ local function compilePacker(s: SchemaType): (Writer, any) -> ()
 		end
 	end
 
-	if s.type == "map" then
+	if schema_type == "map" then
 		local keyPacker = compilePacker(s.key)
 		local valPacker = compilePacker(s.value)
 		return function(w, v)
@@ -1233,7 +1232,7 @@ local function compilePacker(s: SchemaType): (Writer, any) -> ()
 		end
 	end
 
-	if s.type == "optional" then
+	if schema_type == "optional" then
 		local itemPacker = compilePacker(s.item)
 		return function(w, v)
 			if v == nil then
@@ -1249,59 +1248,60 @@ local function compilePacker(s: SchemaType): (Writer, any) -> ()
 end
 
 local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any, number)
-	if s.type == "u8" then
+	local schema_type = s.type
+	if schema_type == "u8" then
 		return function(b, c)
 			return buffer.readu8(b, c), c + 1
 		end
 	end
-	if s.type == "i8" then
+	if schema_type == "i8" then
 		return function(b, c)
 			return buffer.readi8(b, c), c + 1
 		end
 	end
-	if s.type == "u16" then
+	if schema_type == "u16" then
 		return function(b, c)
 			return buffer.readu16(b, c), c + 2
 		end
 	end
-	if s.type == "i16" then
+	if schema_type == "i16" then
 		return function(b, c)
 			return buffer.readi16(b, c), c + 2
 		end
 	end
-	if s.type == "u32" then
+	if schema_type == "u32" then
 		return function(b, c)
 			return buffer.readu32(b, c), c + 4
 		end
 	end
-	if s.type == "i32" then
+	if schema_type == "i32" then
 		return function(b, c)
 			return buffer.readi32(b, c), c + 4
 		end
 	end
-	if s.type == "f32" then
+	if schema_type == "f32" then
 		return function(b, c)
 			return buffer.readf32(b, c), c + 4
 		end
 	end
-	if s.type == "f64" then
+	if schema_type == "f64" then
 		return function(b, c)
 			return buffer.readf64(b, c), c + 8
 		end
 	end
-	if s.type == "boolean" then
+	if schema_type == "boolean" then
 		return function(b, c)
 			return buffer.readu8(b, c) ~= 0, c + 1
 		end
 	end
-	if s.type == "string" then
+	if schema_type == "string" then
 		return function(b, c)
 			local len
 			len, c = readVarUInt(b, c)
 			return buffer.readstring(b, c, len), c + len
 		end
 	end
-	if s.type == "vector3" then
+	if schema_type == "vector3" then
 		return function(b, c)
 			local x = buffer.readf32(b, c)
 			local y = buffer.readf32(b, c + 4)
@@ -1310,7 +1310,7 @@ local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any,
 		end
 	end
 
-	if s.type == "vector2" then
+	if schema_type == "vector2" then
 		return function(b, c)
 			local x = buffer.readf32(b, c)
 			local y = buffer.readf32(b, c + 4)
@@ -1318,7 +1318,7 @@ local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any,
 		end
 	end
 
-	if s.type == "color3" then
+	if schema_type == "color3" then
 		return function(b, c)
 			local r = buffer.readu8(b, c)
 			local g = buffer.readu8(b, c + 1)
@@ -1327,7 +1327,7 @@ local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any,
 		end
 	end
 
-	if s.type == "cframe" then
+	if schema_type == "cframe" then
 		return function(b, c)
 			local px = buffer.readf32(b, c)
 			local py = buffer.readf32(b, c + 4)
@@ -1338,7 +1338,7 @@ local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any,
 			return CFrame.new(px, py, pz) * CFrame.fromOrientation(rx, ry, rz), c + 24
 		end
 	end
-	if s.type == "instance" then
+	if schema_type == "instance" then
 		return function(b, c, refs)
 			local idx
 			idx, c = readVarUInt(b, c)
@@ -1346,10 +1346,10 @@ local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any,
 		end
 	end
 
-	if s.type == "struct" then
+	if schema_type == "struct" then
 		local fields = {}
 		local optionalIndices = {}
-	
+
 		for idx, field in ipairs(s.fields) do
 			local isOpt = field.schema.type == "optional"
 			table.insert(fields, {
@@ -1361,9 +1361,9 @@ local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any,
 				table.insert(optionalIndices, idx)
 			end
 		end
-	
+
 		local numOpt = #optionalIndices
-	
+
 		if numOpt == 0 then
 			return function(b, c, refs)
 				local obj = {}
@@ -1373,9 +1373,9 @@ local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any,
 				return obj, c
 			end
 		end
-	
+
 		local maskBytes = math.ceil(numOpt / 8)
-	
+
 		return function(b, c, refs)
 			-- read bitmask
 			local present = {}
@@ -1390,7 +1390,7 @@ local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any,
 				end
 			end
 			c += maskBytes
-	
+
 			-- read fields
 			local obj = {}
 			local optIdx = 0
@@ -1404,21 +1404,21 @@ local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any,
 					obj[f.key], c = f.reader(b, c, refs)
 				end
 			end
-	
+
 			return obj, c
 		end
 	end
 
-	if s.type == "array" then
+	if schema_type == "array" then
 		local itemSchema = s.item
-	
+
 		-- bitpacking hacks
 		if itemSchema.type == "boolean" then
 			return function(b, c, refs)
 				local len
 				len, c = readVarUInt(b, c)
 				local arr = table.create(len)
-	
+
 				local numBytes = math.ceil(len / 8)
 				for i = 0, numBytes - 1 do
 					local byte = buffer.readu8(b, c + i)
@@ -1433,7 +1433,7 @@ local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any,
 				return arr, c + numBytes
 			end
 		end
-	
+
 		-- regular array
 		local itemReader = compileReader(itemSchema)
 		return function(b, c, refs)
@@ -1447,7 +1447,7 @@ local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any,
 		end
 	end
 
-	if s.type == "map" then
+	if schema_type == "map" then
 		local keyReader = compileReader(s.key)
 		local valReader = compileReader(s.value)
 		return function(b, c, refs)
@@ -1464,7 +1464,7 @@ local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any,
 		end
 	end
 
-	if s.type == "optional" then
+	if schema_type == "optional" then
 		local itemReader = compileReader(s.item)
 		return function(b, c, refs)
 			local exists = buffer.readu8(b, c) ~= 0
@@ -1577,10 +1577,6 @@ BufferSerdes.pack = packValue
 BufferSerdes.build = build
 BufferSerdes.buildWithRefs = buildWithRefs
 BufferSerdes.reset = reset
-
-BufferSerdes.varUIntSize = varUIntSize
-BufferSerdes.writeVarUInt = writeVarUInt
-BufferSerdes.readVarUInt = readVarUInt
 
 BufferSerdes.readTagged = unpackValue
 BufferSerdes.packTagged = packValue
