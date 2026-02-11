@@ -62,6 +62,7 @@ local T_NUMBERRANGE = 0xEF
 local T_RAY = 0xF0
 local T_COLSEQ = 0xF2 -- ColorSequence
 local T_NUMSEQ = 0xF3 -- NumberSequence
+local T_BOOL_ARR = 0xDD
 
 local TYPED_READERS = {
 	[1] = function(b, o)
@@ -299,20 +300,36 @@ local function packString(w: Writer, s: string)
 	wString(w, s)
 end
 
--- is the table a homogeneous number array
-local function analyzeNumberArray(t: { any }): (boolean, string?, number)
-	local count = #t
-	if count == 0 then
-		return false, nil, 0
+-- returns: category ("boolean"|"number"|nil), subtype (number dtype or nil), count
+local function analyzeArray(t: { any }, count: number): (string?, string?, number)
+	if count < 2 then
+		return nil, nil, count
 	end
 
-	local minVal, maxVal = math.huge, -math.huge
-	local allInt = true
+	local first = t[1]
+	local firstType = type(first)
 
-	for i = 1, count do
+	-- o(1)
+	if firstType == "boolean" then
+		for i = 2, count do
+			if type(t[i]) ~= "boolean" then
+				return nil, nil, count
+			end
+		end
+		return "boolean", nil, count
+	end
+
+	if firstType ~= "number" then
+		return nil, nil, count
+	end
+
+	local minVal, maxVal = first, first
+	local allInt = first == math.floor(first)
+
+	for i = 2, count do
 		local v = t[i]
 		if type(v) ~= "number" then
-			return false, nil, count
+			return nil, nil, count
 		end
 		if v ~= math.floor(v) then
 			allInt = false
@@ -326,21 +343,21 @@ local function analyzeNumberArray(t: { any }): (boolean, string?, number)
 	end
 
 	if not allInt then
-		return true, "f32", count
+		return "number", "f32", count
 	elseif minVal >= 0 and maxVal <= 255 then
-		return true, "u8", count
+		return "number", "u8", count
 	elseif minVal >= -128 and maxVal <= 127 then
-		return true, "i8", count
+		return "number", "i8", count
 	elseif minVal >= 0 and maxVal <= 65535 then
-		return true, "u16", count
+		return "number", "u16", count
 	elseif minVal >= -32768 and maxVal <= 32767 then
-		return true, "i16", count
+		return "number", "i16", count
 	elseif minVal >= 0 and maxVal <= 4294967295 then
-		return true, "u32", count
+		return "number", "u32", count
 	elseif minVal >= -2147483648 and maxVal <= 2147483647 then
-		return true, "i32", count
+		return "number", "i32", count
 	end
-	return true, "f64", count
+	return "number", "f64", count
 end
 
 local TYPED_CODES = { u8 = 1, i8 = 2, u16 = 3, i16 = 4, u32 = 5, i32 = 6, f32 = 7, f64 = 8 }
@@ -375,9 +392,35 @@ local function packTable(w: Writer, t: { [any]: any })
 	isArray = isArray and maxIdx == count
 
 	if isArray then
-		-- typed array optimization (worth it for 4+ elements)
-		local isHomogeneous, dtype, arrCount = analyzeNumberArray(t)
-		if isHomogeneous and dtype and arrCount >= 4 then
+		local category, dtype, arrCount = analyzeArray(t, count)
+
+		-- boolean bitpacking hacks
+		if category == "boolean" then
+			wByte(w, T_BOOL_ARR)
+			wVarUInt(w, arrCount)
+
+			local numBytes = math.ceil(arrCount / 8)
+			ensureSpace(w, numBytes)
+
+			for i = 0, numBytes - 1 do
+				local byte = 0
+				for bit = 0, 7 do
+					local idx = i * 8 + bit + 1
+					if idx > arrCount then
+						break
+					end
+					if t[idx] then
+						byte = bit32.bor(byte, bit32.lshift(1, bit))
+					end
+				end
+				buffer.writeu8(w.buf, w.cursor, byte)
+				w.cursor += 1
+			end
+			return
+		end
+
+		-- typed number array (4+ elements)
+		if category == "number" and dtype and arrCount >= 4 then
 			local code = TYPED_CODES[dtype]
 			local size = TYPED_SIZES[dtype]
 			local writer = TYPED_WRITERS[dtype]
@@ -750,6 +793,24 @@ unpackValue = function(buf: buffer, pos: number, refs: { any }?): (any, number)
 		return arr, pos
 	end
 
+	if t == T_BOOL_ARR then
+		local count
+		count, pos = readVarUInt(buf, pos)
+		local arr = table.create(count)
+		local numBytes = math.ceil(count / 8)
+		for i = 0, numBytes - 1 do
+			local byte = buffer.readu8(buf, pos + i)
+			for bit = 0, 7 do
+				local idx = i * 8 + bit + 1
+				if idx > count then
+					break
+				end
+				arr[idx] = bit32.band(byte, bit32.lshift(1, bit)) ~= 0
+			end
+		end
+		return arr, pos + numBytes
+	end
+
 	-- Vector3
 	if t == T_VEC3 then
 		local x = buffer.readf32(buf, pos)
@@ -1037,25 +1098,110 @@ local function compilePacker(s: SchemaType): (Writer, any) -> ()
 
 	if s.type == "struct" then
 		local fields = {}
-		for _, field in s.fields do
-			table.insert(fields, { key = field.key, packer = compilePacker(field.schema) })
+		local optionalIndices = {} -- tracks which fields are optional
+	
+		for idx, field in ipairs(s.fields) do
+			local isOpt = field.schema.type == "optional"
+			table.insert(fields, {
+				key = field.key,
+				packer = compilePacker(isOpt and field.schema.item or field.schema),
+				optional = isOpt,
+			})
+			if isOpt then
+				table.insert(optionalIndices, idx)
+			end
 		end
+	
+		local numOpt = #optionalIndices
+	
+		if numOpt == 0 then
+			return function(w, v)
+				if type(v) ~= "table" then
+					error(`Expected table for struct, got {typeof(v)}`)
+				end
+				for _, f in fields do
+					local val = v[f.key]
+					if val == nil then
+						error(`Schema Error: Missing required field '{f.key}'`)
+					end
+					f.packer(w, val)
+				end
+			end
+		end
+	
+		local maskBytes = math.ceil(numOpt / 8)
+	
 		return function(w, v)
 			if type(v) ~= "table" then
 				error(`Expected table for struct, got {typeof(v)}`)
 			end
+	
+			-- write bitmask for optional fields
+			ensureSpace(w, maskBytes)
+			for i = 0, maskBytes - 1 do
+				local byte = 0
+				for b = 0, 7 do
+					local optIdx = i * 8 + b + 1
+					if optIdx > numOpt then
+						break
+					end
+					local fieldIdx = optionalIndices[optIdx]
+					if v[fields[fieldIdx].key] ~= nil then
+						byte = bit32.bor(byte, bit32.lshift(1, b))
+					end
+				end
+				buffer.writeu8(w.buf, w.cursor, byte)
+				w.cursor += 1
+			end
+	
+			-- write field values
 			for _, f in fields do
 				local val = v[f.key]
-				if val == nil then
-					error(`Schema Error: Missing required field '{f.key}'`)
+				if f.optional then
+					if val ~= nil then
+						f.packer(w, val)
+					end
+				else
+					if val == nil then
+						error(`Schema Error: Missing required field '{f.key}'`)
+					end
+					f.packer(w, val)
 				end
-				f.packer(w, val)
 			end
 		end
 	end
 
 	if s.type == "array" then
-		local itemPacker = compilePacker(s.item)
+		local itemSchema = s.item
+		
+		-- bitpacking hacks
+		if itemSchema.type == "boolean" then
+			return function(w, v)
+				local len = #v
+				wVarUInt(w, len)
+	
+				local numBytes = math.ceil(len / 8)
+				ensureSpace(w, numBytes)
+	
+				for i = 0, numBytes - 1 do
+					local byte = 0
+					for bit = 0, 7 do
+						local idx = i * 8 + bit + 1
+						if idx > len then
+							break
+						end
+						if v[idx] then
+							byte = bit32.bor(byte, bit32.lshift(1, bit))
+						end
+					end
+					buffer.writeu8(w.buf, w.cursor, byte)
+					w.cursor += 1
+				end
+			end
+		end
+	
+		-- regular array
+		local itemPacker = compilePacker(itemSchema)
 		return function(w, v)
 			if type(v) ~= "table" then
 				error(`Expected table for array, got {typeof(v)}`)
@@ -1202,20 +1348,94 @@ local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any,
 
 	if s.type == "struct" then
 		local fields = {}
-		for _, field in s.fields do
-			table.insert(fields, { key = field.key, reader = compileReader(field.schema) })
-		end
-		return function(b, c, refs)
-			local obj = {}
-			for _, f in fields do
-				obj[f.key], c = f.reader(b, c, refs)
+		local optionalIndices = {}
+	
+		for idx, field in ipairs(s.fields) do
+			local isOpt = field.schema.type == "optional"
+			table.insert(fields, {
+				key = field.key,
+				reader = compileReader(isOpt and field.schema.item or field.schema),
+				optional = isOpt,
+			})
+			if isOpt then
+				table.insert(optionalIndices, idx)
 			end
+		end
+	
+		local numOpt = #optionalIndices
+	
+		if numOpt == 0 then
+			return function(b, c, refs)
+				local obj = {}
+				for _, f in fields do
+					obj[f.key], c = f.reader(b, c, refs)
+				end
+				return obj, c
+			end
+		end
+	
+		local maskBytes = math.ceil(numOpt / 8)
+	
+		return function(b, c, refs)
+			-- read bitmask
+			local present = {}
+			for i = 0, maskBytes - 1 do
+				local byte = buffer.readu8(b, c + i)
+				for bit = 0, 7 do
+					local optIdx = i * 8 + bit + 1
+					if optIdx > numOpt then
+						break
+					end
+					present[optIdx] = bit32.band(byte, bit32.lshift(1, bit)) ~= 0
+				end
+			end
+			c += maskBytes
+	
+			-- read fields
+			local obj = {}
+			local optIdx = 0
+			for _, f in fields do
+				if f.optional then
+					optIdx += 1
+					if present[optIdx] then
+						obj[f.key], c = f.reader(b, c, refs)
+					end
+				else
+					obj[f.key], c = f.reader(b, c, refs)
+				end
+			end
+	
 			return obj, c
 		end
 	end
 
 	if s.type == "array" then
-		local itemReader = compileReader(s.item)
+		local itemSchema = s.item
+	
+		-- bitpacking hacks
+		if itemSchema.type == "boolean" then
+			return function(b, c, refs)
+				local len
+				len, c = readVarUInt(b, c)
+				local arr = table.create(len)
+	
+				local numBytes = math.ceil(len / 8)
+				for i = 0, numBytes - 1 do
+					local byte = buffer.readu8(b, c + i)
+					for bit = 0, 7 do
+						local idx = i * 8 + bit + 1
+						if idx > len then
+							break
+						end
+						arr[idx] = bit32.band(byte, bit32.lshift(1, bit)) ~= 0
+					end
+				end
+				return arr, c + numBytes
+			end
+		end
+	
+		-- regular array
+		local itemReader = compileReader(itemSchema)
 		return function(b, c, refs)
 			local len
 			len, c = readVarUInt(b, c)
