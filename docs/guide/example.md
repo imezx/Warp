@@ -1,4 +1,4 @@
-# Example
+# Example <Badge type="tip" text="1.0" />
 
 Let's try and play something with Warp!
 

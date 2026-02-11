@@ -1,4 +1,4 @@
-# Getting Started
+# Getting Started <Badge type="tip" text="1.0" />
 
 ### `Step 1:`
 First, you have to require the Warp module.

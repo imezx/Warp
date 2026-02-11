@@ -9,7 +9,8 @@ function nav() {
     {
       text: 'API Reference',
       items: [
-        { text: '1.0', link: '/api/1.0/warp' }
+        { text: '1.0', link: '/api/1.0/warp' },
+        { text: '1.1', link: '/api/1.1/warp' }
       ]
     }
   ]
@@ -17,6 +18,27 @@ function nav() {
 
 function side() {
   return {
+    '/api/1.1': [
+      {
+        text: 'API Reference',
+        items: [
+          { text: 'Warp', link: '/api/1.1/warp' },
+          {
+            text: 'Event',
+            items: [
+              { text: 'Server', link: '/api/1.1/server' },
+              { text: 'Client', link: '/api/1.1/client' },
+            ]
+          },
+          {
+            text: 'Utilities',
+            items: [
+              { text: 'Buffer', link: '/api/1.1/buffer' },
+            ]
+          },
+        ]
+      }
+    ],
     '/api/1.0': [
       {
         text: 'API Reference',
