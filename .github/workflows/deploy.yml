@@ -34,6 +34,7 @@ jobs:
       - name: Install dependencies
         run: |
           rm -f package-lock.json
+          rm -rf node_modules
           bun install
 
       - name: Build
