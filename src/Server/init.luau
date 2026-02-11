@@ -107,6 +107,13 @@ Server.Fires = function(remoteName: string, reliable: boolean, ...: any?)
 	end
 end
 
+Server.FireExcept = function(remoteName: string, reliable: boolean, except: { Player }, ...: any?)
+	for _, player: Player in players_ready do
+		if table.find(except, player) then continue end
+		Server.Fire(remoteName, reliable, player, ...)
+	end
+end
+
 Server.Invoke = function(remoteName: string, player: Player, timeout: number?, ...: any?): ...any?
 	invokeId += 1
 	local id, thread = `{invokeId}`, coroutine.running()
