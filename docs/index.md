@@ -4,8 +4,6 @@ layout: home
 hero:
   image:
     src: "/warp.png"
-  name: "Warp"
-  text: "A very-fast & powerful networking library for Roblox."
   actions:
     - theme: brand
       text: Get Started
