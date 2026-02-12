@@ -1,4 +1,4 @@
-# Warp <Badge type="tip" text="1.1" />
+# Warp <Badge type="tip" text="1.1" /> <Badge type="warning" text="pre-release" />
 
 The public main of the Warp library.
 ::: warning

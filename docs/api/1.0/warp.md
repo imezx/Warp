@@ -1,4 +1,4 @@
-# Warp <Badge type="tip" text="1.0" />
+# Warp <Badge type="tip" text="1.0" /> <Badge type="warning" text="deprecated" />
 
 The public main of the Warp library.
 

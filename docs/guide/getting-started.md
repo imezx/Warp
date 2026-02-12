@@ -1,26 +1,50 @@
-# Getting Started <Badge type="tip" text="1.0" />
+# Getting Started <Badge type="tip" text="1.1" />
 
-### `Step 1:`
+### `Installation`
 First, you have to require the Warp module.
 
 ```lua
-local Warp = require('path.to.module');
+local Warp = require(path.to.module)
 ```
 
-### `Step 2:`
-Then, to create a new event you have to use `.Server` function
+Then, you should do `.Server` or `.Client`
 
 ```lua
-local Remote = Warp.Server("EventName");
+local Server = Warp.Server() --> for Server-side only
+local Client = Warp.Client() --> for Client-side only
 ```
 
-### `Step 3:`
+### `Basic Usage`
 Firing event everytime player join
 
 ```lua
 local Players = game:GetService("Players")
 
-Players.PlayerAdded:Connect(function(player)
-    Remote:Fire(true, player, "Welcome!")
+Players.PlayerAdded:Connect(function(player: Player)
+    Server.Fire("MessageEvent", true, player, "Welcome!")
 end)
+```
+Add a listener (works for both `.Invoke` & `.Fire`)
+
+```lua
+local connection = Server.Connect("Ping", function(player: Player)
+    return "Pong"
+end)
+print(connection.Connected)
+-- connection:Disconnect()
+```
+Send or Request a event
+
+```lua
+-- Reliable-RemoteEvent
+Client.Fire("test", true, "hey")
+-- Unreliable-RemoteEvent
+Client.Fire("test", false, "hello from client!!")
+-- Invoke
+local response = Client.Invoke("Ping")
+if not response then
+    warn("Server didn't ping back :(")
+    return
+end
+print(response, "from Server!")
 ```
