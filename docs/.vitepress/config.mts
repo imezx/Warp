@@ -9,8 +9,8 @@ function nav() {
     {
       text: 'API Reference',
       items: [
+        { text: '1.1', link: '/api/1.1/warp' },
         { text: '1.0', link: '/api/1.0/warp' },
-        { text: '1.1', link: '/api/1.1/warp' }
       ]
     }
   ]
