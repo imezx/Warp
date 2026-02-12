@@ -5,6 +5,6 @@ registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 license = "MIT"
 exclude = ["node_modules", "docs", ".github", "*.rbxl", "*.rbxmx", "*.rbxml", "*.rbxm", "TestEZ", "test.project.json"]
-description = "A very-fast & powerful networking library for Roblox."
+description = "A rapidly-fast & powerful networking library."
 
 [dependencies]

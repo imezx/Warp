@@ -1,7 +1,7 @@
 <div align="center">
 	<img src="docs/public/warp.png" alt="Warp icon" />
     <h1><span style="color:blue;">Warp</span></h1>
-    <p><h1>A very-fast & powerful networking library.</h1></p>
+    <p><h1>A rapidly-fast & powerful networking library.</h1></p>
 </div>
 
 ---

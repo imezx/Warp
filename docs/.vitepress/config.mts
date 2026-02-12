@@ -82,7 +82,7 @@ function side() {
 
 export default defineConfig({
   title: "Warp",
-  description: "Warp - A very-fast & powerful network library for Roblox.",
+  description: "Warp - A rapidly-fast & powerful network library for Roblox.",
   lang: 'en-US',
   head: [
     ['link', { rel: 'icon', href: 'favicon.ico' }],
