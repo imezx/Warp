@@ -1005,9 +1005,9 @@ function Schema.struct(fields: { [string]: SchemaType }): SchemaType
 	for k, v in fields do
 		table.insert(orderedFields, { key = k, schema = v })
 	end
-	-- table.sort(orderedFields, function(a, b) -- i think this is optional?
-	-- 	return a.key < b.key
-	-- end)
+	table.sort(orderedFields, function(a, b)
+		return a.key < b.key
+	end)
 	return { type = "struct", fields = orderedFields }
 end
 
