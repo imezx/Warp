@@ -213,3 +213,28 @@ body::before {
 .VPHero .name {
   text-shadow: 0 0 40px rgba(254, 82, 52, 0.3);
 }
+.VPHero .image-src {
+  animation: float-premium 6s ease-in-out infinite;
+  transform-origin: center center;
+}
+
+.VPHero .image-bg {
+  animation: pulse-glow-premium 5s ease-in-out infinite alternate;
+}
+
+@keyframes float-premium {
+  0% { transform: translate(-50%, -50%) translateY(0px); }
+  50% { transform: translate(-50%, -50%) translateY(-16px); }
+  100% { transform: translate(-50%, -50%) translateY(0px); }
+}
+
+@keyframes pulse-glow-premium {
+  0% { 
+    opacity: 0.6; 
+    transform: translate(-50%, -50%) scale(0.95); 
+  }
+  100% { 
+    opacity: 1; 
+    transform: translate(-50%, -50%) scale(1.1); 
+  }
+}
