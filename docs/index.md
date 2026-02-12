@@ -10,7 +10,7 @@ hero:
       link: /guide/
     - theme: alt
       text: API Reference
-      link: /api/1.0/warp
+      link: /api/1.1/warp
     - theme: alt
       text: View on Github
       link: https://github.com/imezx/Warp

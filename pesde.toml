@@ -1,0 +1,22 @@
+name = "eternitydev/warp"
+version = "1.1.0-pre1"
+description = "A very-fast & powerful networking library."
+authors = ["eternitydev"]
+repository = "https://github.com/imezx/Warp"
+license = "MIT"
+includes = [
+  "pesde.toml",
+  "README.md",
+  "LICENSE",
+  "src/**/*.luau",
+  "docs/**/*.md",
+  "docs/**/*.png",
+]
+
+[target]
+environment = "luau"
+lib = "src/init.luau"
+build_files = ["src"]
+
+[indices]
+default = "https://github.com/pesde-pkg/index"
