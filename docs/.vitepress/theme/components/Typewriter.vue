@@ -24,10 +24,12 @@ const props = withDefaults(defineProps<{
 }>(), {
   staticTitle: 'Warp',
   words: () => [
-    'A fast networking library.',
-    'A simple networking library.',
-    'A powerful networking library.',
-    'A lightweight networking',
+    'Rapidly-fast networking.',
+    'Remarkably simple.',
+    'It feels so powerful.',
+    'Type-safe and lightweight.',
+    'Tired of defining schemas?',
+    'Just use Warp.',
   ],
   typeSpeed: 50,
   deleteSpeed: 20,
