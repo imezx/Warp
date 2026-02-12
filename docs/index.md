@@ -18,13 +18,13 @@ hero:
 features:
   - icon: ⚡
     title: Performance
-    details: Warp is very-fast with much less bandwidth compared to native.
+    details: Warp is rapidly-fast with much less bandwidth compared to native.
   - icon: 🍃
-    title: Lightweight
-    details: Warp is a lightweight library for Roblox.
+    title: Compact
+    details: Warp is a simple, efficient & lightweight library.
   - icon: 📊
-    title: Task
-    details: Warp optimized efficient for large-scale task.
+    title: Dynamic
+    details: Warp is dynamic by default. It serializes and deserializes data dynamically without requiring a user-defined schema, although schema support is available as an option.
   - icon: 🔎
     title: Type
     details: Warp written with strictly-typed.

@@ -1,7 +1,7 @@
 <div align="center">
 	<img src="docs/public/warp.png" alt="Warp icon" />
     <h1><span style="color:blue;">Warp</span></h1>
-    <p><h1>A very-fast & powerful networking library for Roblox.</h1></p>
+    <p><h1>A very-fast & powerful networking library.</h1></p>
 </div>
 
 ---
@@ -9,13 +9,13 @@
 ## Why Warp
 
 ### ⚡ Performance
-Warp is very-fast with much less bandwidth compared to native.
+Warp is rapidly-fast with much less bandwidth compared to native.
 
-### 🍃 Lightweight
-Warp is a lightweight library for Roblox.
+### 🍃 Compact
+Warp is a simple, efficient & lightweight library.
 
-### 📊 Task
-Warp optimized efficient for large-scale task.
+### 📊 Dynamic
+Warp is dynamic by default. It serializes and deserializes data dynamically without requiring a user-defined schema, although schema support is available as an option.
 
 ### 🔎 Typing
 Warp written with strictly-typed.
