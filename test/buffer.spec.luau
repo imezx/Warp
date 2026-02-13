@@ -920,34 +920,34 @@ return function()
 		it("encodes/decodes event batches (writeEvents/readEvents), with and without schemas", function()
 			local S = Buffer.Schema
 			local schemas = {
-				MyRemote = S.struct({
+				[1] = S.struct({ -- this defined in id since remoteName (string) will be converted into integer (u8) through Identifier
 					count = S.u8,
 					msg = S.string,
 				}),
 			}
-
+		
 			local payload = {
 				count = 7,
 				msg = "hello",
 			}
-
+		
 			local events = {
-				{ "MyRemote", { payload } },
-				{ "OtherRemote", { 1, 2 } },
+				{ 1, { payload } },
+				{ 2, { 1, 2 } },
 			}
-
+		
 			local w = Buffer.createWriter()
 			Buffer.writeEvents(w, events, schemas)
 			local buf, refs = Buffer.buildWithRefs(w)
-
+		
 			local decoded = Buffer.readEvents(buf, refs, schemas)
 			expect(#decoded).to.equal(2)
-
-			expect(decoded[1][1]).to.equal("MyRemote")
+		
+			expect(decoded[1][1]).to.equal(1)
 			expect(decoded[1][2][1].count).to.equal(7)
 			expect(decoded[1][2][1].msg).to.equal("hello")
-
-			expect(decoded[2][1]).to.equal("OtherRemote")
+		
+			expect(decoded[2][1]).to.equal(2)
 			expect(decoded[2][2][1]).to.equal(1)
 			expect(decoded[2][2][2]).to.equal(2)
 		end)
