@@ -1,7 +1,7 @@
 --!optimize 2
 --!native
 --@EternityDev
-local BITS: number = 8
+local BITS: number = 16
 local MAX_VALUE: number = bit32.lshift(1, BITS) - 1
 
 local cache: { [string]: number } = {}
@@ -13,7 +13,7 @@ return function(name: string): number
 	if cached then
 		return cached
 	end
-	if count >= MAX_VALUE then
+	if count >= 255 then -- 255 is safer from collision
 		warn("ran out of ids :(")
 		return 0
 	end
