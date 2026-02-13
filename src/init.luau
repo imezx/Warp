@@ -16,7 +16,7 @@ end
 
 local Client = require("@self/Client")
 local Server = require("@self/Server")
-local Buffer = require("@self/Buffer")
+local Buffer = require("@self/Util/Buffer")
 
 --[[
 	@class Remote

@@ -1504,14 +1504,14 @@ local function readStrict(buf: buffer, cursor: number, s: SchemaType, refs: { an
 	return reader(buf, cursor, refs)
 end
 
-local function writeEvents(w: Writer, events: { { any } }, schemas: { [string]: SchemaType })
+local function writeEvents(w: Writer, events: { { any } }, schemas: { [number]: SchemaType })
 	local count = #events
 	wVarUInt(w, count)
 	for _, event in events do
-		local remote = event[1]
+		local id = event[1]
 		local args = event[2]
-		packValue(w, remote)
-		local schema = schemas[remote]
+		wByte(w, id)
+		local schema = schemas[id]
 		if schema then
 			packStrict(w, schema, args[1])
 		else
@@ -1520,15 +1520,15 @@ local function writeEvents(w: Writer, events: { { any } }, schemas: { [string]: 
 	end
 end
 
-local function readEvents(buf: buffer, refs: { any }?, schemas: { [string]: SchemaType }): { { any } }
+local function readEvents(buf: buffer, refs: { any }?, schemas: { [number]: SchemaType }): { { any } }
 	local pos, count = 0, 0
 	count, pos = readVarUInt(buf, pos)
 	local events = table.create(count)
 	for i = 1, count do
-		local remote
-		remote, pos = unpackValue(buf, pos, refs)
-		local args
-		local schema = schemas[remote]
+		local id: number = buffer.readu8(buf, pos)
+		pos += 1
+		local args: any
+		local schema = schemas[id]
 		if schema then
 			local val
 			val, pos = readStrict(buf, pos, schema, refs)
@@ -1536,7 +1536,7 @@ local function readEvents(buf: buffer, refs: { any }?, schemas: { [string]: Sche
 		else
 			args, pos = unpackValue(buf, pos, refs)
 		end
-		events[i] = { remote, args }
+		events[i] = { id, args }
 	end
 	return events
 end

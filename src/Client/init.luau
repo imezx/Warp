@@ -4,8 +4,9 @@
 local Client = {}
 
 local RunService = game:GetService("RunService")
-local Thread = require("./Thread")
-local Buffer = require("./Buffer")
+local Thread = require("./Util/Thread")
+local Buffer = require("./Util/Buffer")
+local Identifier = require("./Util/Identifier")
 local Event: RemoteEvent = script.Parent:WaitForChild("Event")
 local UnreliableEvent: UnreliableRemoteEvent = script.Parent:WaitForChild("UnreliableEvent")
 local deltaT: number, cycle: number = 0, 1 / 61
@@ -16,26 +17,26 @@ type Connection = {
 	Disconnect: (self: Connection) -> (),
 }
 type Event = {
-	remote: string,
-	fn: (Player, ...any?) -> ...any?,
+	i: number,
+	c: (Player, ...any?) -> ...any?,
 }
 
 local queueEvent: { { any } } = {}
 local queueUnreliableEvent: { { any } } = {}
 local eventListeners: { Event } = {}
-local eventSchemas: { [string]: Buffer.SchemaType } = {}
+local eventSchemas: { [number]: Buffer.SchemaType } = {}
 
 local pendingInvokes: { [string]: thread } = {}
 local invokeId = 0
 
 Client.useSchema = function(remoteName: string, schema: Buffer.SchemaType)
-	eventSchemas[remoteName] = schema
+	eventSchemas[Identifier(remoteName)] = schema
 end
 
 Client.Connect = function(remoteName: string, fn: (Player, ...any?) -> ...any?): Connection
 	local detail = {
-		remote = remoteName,
-		fn = fn,
+		i = Identifier(remoteName),
+		c = fn,
 	}
 	table.insert(eventListeners, detail)
 	return {
@@ -73,40 +74,39 @@ Client.Wait = function(remoteName: string): (number, ...any?)
 end
 
 Client.DisconnectAll = function(remoteName: string)
+	local id = Identifier(remoteName)
 	for idx = #eventListeners, 1, -1 do
-		if eventListeners[idx].remote == remoteName then
+		if eventListeners[idx].i == id then
 			table.remove(eventListeners, idx)
 		end
 	end
 end
 
-Client.Destroy = function(remoteName: string)
-	Client.DisconnectAll(remoteName)
-end
+Client.Destroy = Client.DisconnectAll
 
 Client.Fire = function(remoteName: string, reliable: boolean, ...: any?)
 	table.insert(reliable and queueEvent or queueUnreliableEvent, {
-		remoteName,
+		Identifier(remoteName),
 		{ ... } :: any,
 	})
 end
 
 Client.Invoke = function(remoteName: string, timeout: number?, ...: any?): ...any?
 	invokeId += 1
-	local id, thread = `{invokeId}`, coroutine.running()
+	local reqid, thread = `{invokeId}`, coroutine.running()
 
-	pendingInvokes[id] = thread
+	pendingInvokes[reqid] = thread
 	task.delay(timeout or 2, function()
-		local pending = pendingInvokes[id]
+		local pending = pendingInvokes[reqid]
 		if not pending then
 			return
 		end
 		task.spawn(pending, nil)
-		pendingInvokes[id] = nil
+		pendingInvokes[reqid] = nil
 	end)
 	table.insert(queueEvent, {
-		"\0",
-		{ remoteName, id, { ... } :: any } :: any,
+		0,
+		{ Identifier(remoteName), reqid :: any, { ... } :: any } :: any,
 	})
 	return coroutine.yield()
 end
@@ -121,7 +121,7 @@ if RunService:IsClient() then
 			local remote = content[1]
 			local content = content[2]
 			if handleInvokes then
-				if remote == "\1" then
+				if remote == 0 then
 					local id = content[1]
 					local results = content[2]
 					local pending = pendingInvokes[id]
@@ -131,7 +131,7 @@ if RunService:IsClient() then
 					end
 					continue
 				end
-				if remote == "\0" then
+				if remote == 1 then
 					if #eventListeners == 0 then
 						continue
 					end
@@ -139,11 +139,11 @@ if RunService:IsClient() then
 					local id = content[2]
 					local args = content[3]
 					for _, connection in eventListeners do
-						if connection.remote == remoteName then
+						if connection.i == remoteName then
 							Thread(function()
-								local results = { connection.fn(table.unpack(args)) }
+								local results = { connection.c(table.unpack(args)) }
 								table.insert(queueEvent, {
-									"\1",
+									1,
 									{ id, results } :: any,
 								})
 							end)
@@ -157,10 +157,10 @@ if RunService:IsClient() then
 				continue
 			end
 			for _, connection in eventListeners do
-				if connection.remote ~= remote then
+				if connection.i ~= remote then
 					continue
 				end
-				Thread(connection.fn, table.unpack(content))
+				Thread(connection.c, table.unpack(content))
 			end
 		end
 	end
