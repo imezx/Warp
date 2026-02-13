@@ -35,6 +35,7 @@
   --glass-blur: 28px;
   --glass-blur-2: 16px;
   --glass-blur-3: 24px;
+  --glass-blur-4: 4px;
   --glass-radius: 24px;
   --glass-menu-radius: 12px;
 
@@ -155,8 +156,8 @@ body::before {
 }
 .backdrop {
   background-color: transparent !important;
-  backdrop-filter: saturate(180%) blur(var(--glass-blur-2)) !important;
-  -webkit-backdrop-filter: saturate(180%) blur(var(--glass-blur-2)) !important;
+  backdrop-filter: saturate(180%) blur(var(--glass-blur-4)) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(var(--glass-blur-4)) !important;
   border: 1px solid var(--glass-border) !important;
   box-shadow: var(--glass-shadow);
 }
