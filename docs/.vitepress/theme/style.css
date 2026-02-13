@@ -24,18 +24,21 @@
   --vp-c-danger-3: var(--vp-c-red-3);
   --vp-c-danger-soft: var(--vp-c-red-soft);
 
-  --glass-nav-bg: rgba(255, 255, 255, 0.7); 
+  --glass-nav-bg: rgba(255, 255, 255, 0.7);
   --glass-sidebar-bg: rgba(255, 255, 255, 0.7);
-  
+
   --glass-bg: rgba(255, 255, 255, 0.8);
   --glass-border: rgba(0, 0, 0, 0.08);
   --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08);
+  --glass-shadow-2: 0 6px 24px 0 rgba(0, 0, 0, 0.08);
   --glass-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.6);
   --glass-blur: 28px;
+  --glass-blur-2: 16px;
+  --glass-blur-3: 24px;
   --glass-radius: 24px;
   --glass-menu-radius: 12px;
 
-  --vp-c-bg: #ffffff; 
+  --vp-c-bg: #ffffff;
   --vp-c-bg-alt: #f8f9fa;
 
   --vp-button-brand-border: transparent;
@@ -62,39 +65,44 @@
 .dark {
   --glass-nav-bg: rgba(22, 22, 24, 0.6);
   --glass-sidebar-bg: rgba(22, 22, 24, 0.6);
-  
+
   --glass-bg: rgba(30, 30, 35, 0.6);
   --glass-border: rgba(255, 255, 255, 0.1);
   --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
   --glass-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
-  
+
   --vp-c-bg: #0f0f11;
   --vp-c-bg-alt: #161618;
+  --vp-c-gutter: rgba(255, 255, 255, 0.4);
 }
 
 body::before {
   content: "";
   position: fixed;
-  top: 0; 
+  top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
   z-index: -1;
   pointer-events: none;
-  background: 
+  background:
     radial-gradient(circle at 100% 0%, rgba(254, 82, 52, 0.1), transparent 50%),
     radial-gradient(circle at 0% 100%, rgba(79, 70, 229, 0.1), transparent 50%);
 }
 
 .dark body::before {
-  background: 
+  background:
     radial-gradient(circle at 90% 10%, rgba(254, 82, 52, 0.15), transparent 60%),
     radial-gradient(circle at 10% 90%, rgba(79, 70, 229, 0.12), transparent 50%);
 }
 
-.VPNav { background-color: transparent !important; }
+.VPNav,
+.VPLocalNav, .shell, .backdrop {
+  background-color: transparent !important;
+}
 
-.VPNavBar {
+.VPNavBar,
+.VPLocalNav {
   background-color: var(--glass-nav-bg) !important;
   backdrop-filter: saturate(180%) blur(var(--glass-blur)) !important;
   -webkit-backdrop-filter: saturate(180%) blur(var(--glass-blur)) !important;
@@ -102,25 +110,70 @@ body::before {
   box-shadow: var(--glass-shadow);
 }
 
-.VPNav .content-body { background-color: transparent !important; backdrop-filter: none !important; }
+.VPNav .content-body,
+.VPLocalNav.container {
+  background-color: transparent !important;
+  backdrop-filter: none !important;
+}
 
-.VPSidebar {
-  background-color: var(--glass-sidebar-bg) !important;
-  backdrop-filter: blur(var(--glass-blur));
+.VPNavScreenAppearance {
+  background-color: transparent !important;
+  backdrop-filter: blur(var(--glass-blur)) !important;
+  border: 1px solid var(--glass-border);
+}
+
+.VPNavScreenMenuLink, .VPNavScreenMenuGroup {
+  border-bottom: 1px solid var(--glass-border) !important;
+}
+
+.VPLocalNav .outline {
+  background-color: rgba(24, 24, 29, 0.9) !important;
+  backdrop-filter: saturate(180%) blur(var(--glass-blur)) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(var(--glass-blur)) !important;
+  border: 1px solid var(--glass-border) !important;
+}
+.VPLocalNav .header {
+  background-color: rgba(24, 24, 29, 0.95) !important;
+  backdrop-filter: saturate(180%) blur(var(--glass-blur)) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(var(--glass-blur)) !important;
+  border: 1px solid var(--glass-border) !important;
+}
+
+.VPSidebar,
+.VPNavScreen {
+  background-color: transparent !important;
+  backdrop-filter: blur(var(--glass-blur-3)) !important;
   border-right: 1px solid var(--glass-border);
 }
 
-.VPNavBar .divider { display: none; }
+.shell {
+  background-color: var(--glass-bg) !important;
+  backdrop-filter: saturate(180%) blur(var(--glass-blur-2)) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(var(--glass-blur-2)) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow);
+}
+.backdrop {
+  background-color: transparent !important;
+  backdrop-filter: saturate(180%) blur(var(--glass-blur-2)) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(var(--glass-blur-2)) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow);
+}
+
+.VPNavBar .divider {
+  display: none;
+}
 
 .VPFlyout .menu {
   background-color: var(--glass-bg) !important;
   backdrop-filter: saturate(180%) blur(var(--glass-blur)) !important;
   -webkit-backdrop-filter: saturate(180%) blur(var(--glass-blur)) !important;
-  
+
   border: 1px solid var(--glass-border) !important;
   border-radius: var(--glass-menu-radius) !important;
   box-shadow: var(--glass-shadow), var(--glass-highlight) !important;
-  
+
   padding: 6px !important;
   overflow: hidden;
 }
@@ -141,27 +194,46 @@ body::before {
   background-color: rgba(255, 255, 255, 0.05) !important;
 }
 
+.vp-adaptive-theme {
+  background-color: var(--glass-bg) !important;
+  backdrop-filter: saturate(180%) blur(var(--glass-blur)) !important;
+}
+.custom-block {
+  backdrop-filter: blur(var(--glass-blur)) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(var(--glass-blur)) !important;
+
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--glass-menu-radius) !important;
+
+  background-clip: padding-box !important;
+  box-shadow: var(--glass-shadow-2), var(--glass-highlight) !important;
+
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 0.3s ease,
+    box-shadow 0.3s ease !important;
+}
+
 .VPFeature {
   background: var(--glass-bg) !important;
   backdrop-filter: saturate(180%) blur(var(--glass-blur)) !important;
   -webkit-backdrop-filter: saturate(180%) blur(var(--glass-blur)) !important;
-  
+
   border: 1px solid var(--glass-border) !important;
   border-radius: var(--glass-radius) !important;
-  
+
   background-clip: padding-box !important;
   box-shadow: var(--glass-shadow), var(--glass-highlight) !important;
-  
-  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), 
-              border-color 0.3s ease, 
-              box-shadow 0.3s ease !important;
+
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 0.3s ease,
+    box-shadow 0.3s ease !important;
 }
 
 .VPFeature:hover {
   transform: translateY(-8px) scale(1.01);
   border-color: rgba(255, 255, 255, 0.4) !important;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.25), 
-              inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
 }
 
 .VPButton {
@@ -175,7 +247,7 @@ body::before {
 .VPButton.brand {
   background: linear-gradient(135deg, var(--vp-c-brand-3), var(--vp-c-brand-1)) !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  box-shadow: 0 4px 12px rgba(var(--vp-c-brand-rgb), 0.5), inset 0 1px 0 rgba(255,255,255,0.3) !important;
+  box-shadow: 0 4px 12px rgba(var(--vp-c-brand-rgb), 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
 }
 
 .VPButton.brand:hover {
@@ -195,10 +267,15 @@ body::before {
 }
 
 @media (min-width: 640px) {
-  :root { --vp-home-hero-image-filter: blur(56px); }
+  :root {
+    --vp-home-hero-image-filter: blur(56px);
+  }
 }
+
 @media (min-width: 960px) {
-  :root { --vp-home-hero-image-filter: blur(72px); }
+  :root {
+    --vp-home-hero-image-filter: blur(72px);
+  }
 }
 
 .DocSearch {
@@ -213,6 +290,7 @@ body::before {
 .VPHero .name {
   text-shadow: 0 0 40px rgba(254, 82, 52, 0.3);
 }
+
 .VPHero .image-src {
   animation: float-premium 6s ease-in-out infinite;
   transform-origin: center center;
@@ -223,18 +301,27 @@ body::before {
 }
 
 @keyframes float-premium {
-  0% { transform: translate(-50%, -50%) translateY(0px); }
-  50% { transform: translate(-50%, -50%) translateY(-16px); }
-  100% { transform: translate(-50%, -50%) translateY(0px); }
+  0% {
+    transform: translate(-50%, -50%) translateY(0px);
+  }
+
+  50% {
+    transform: translate(-50%, -50%) translateY(-16px);
+  }
+
+  100% {
+    transform: translate(-50%, -50%) translateY(0px);
+  }
 }
 
 @keyframes pulse-glow-premium {
-  0% { 
-    opacity: 0.6; 
-    transform: translate(-50%, -50%) scale(0.95); 
+  0% {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(0.95);
   }
-  100% { 
-    opacity: 1; 
-    transform: translate(-50%, -50%) scale(1.1); 
+
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.1);
   }
 }
