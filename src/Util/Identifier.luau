@@ -15,7 +15,7 @@ return function(name: string): number
 
 	local b: number = hash
 	for i = 1, #name do
-		b = bit32.bxor(bit32.lshift(hash, 5) + b, string.byte(name, i))
+		b = bit32.bxor(bit32.lshift(b, 5) + b, string.byte(name, i))
 	end
 
 	local reduced = bit32.band(b, MAX_VALUE)
