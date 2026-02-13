@@ -7,13 +7,13 @@ For Client-sided
 Create new Warp event.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	Identifier: string
 )
 ```
 
-```lua [Example]
+```luau [Example]
 local Remote = Warp.Client("Remote")
 ```
 :::
@@ -23,13 +23,13 @@ local Remote = Warp.Client("Remote")
 Create new Warp events with array.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	{ any }
 )
 ```
 
-```lua [Example]
+```luau [Example]
 local Events = Warp.fromClientArray({
 	"Remote1",
 	"Remote2",
@@ -48,13 +48,13 @@ Events.Remote3:Connect(function(...) end)
 Connect event to receive incoming from server way.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	callback: (...any) -> ()
 )
 ```
 
-```lua [Example]
+```luau [Example]
 Remote:Connect(function(...)
 	print(...)
 end)
@@ -66,13 +66,13 @@ end)
 This function likely `:Connect` but it disconnect the event once it fired.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	callback: (...any) -> ()
 )
 ```
 
-```lua [Example]
+```luau [Example]
 Remote:Once(function(...)
 	print(...)
 end)
@@ -84,13 +84,13 @@ end)
 Disconnect the event connection.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	key: string
 ): boolean
 ```
 
-```lua [Example]
+```luau [Example]
 local connection = Remote:Connect(function(player, ...) end) -- store the key
 
 Remote:Disconnect(connection)
@@ -101,7 +101,7 @@ Remote:Disconnect(connection)
 
 Disconnect All the event connection.
 
-```lua [Example]
+```luau [Example]
 Remote:DisconnectAll()
 ```
 
@@ -110,14 +110,14 @@ Remote:DisconnectAll()
 Fire the event to the spesific server with data.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	reliable: boolean,
 	...: any
 )
 ```
 
-```lua [Example]
+```luau [Example]
 Remote:Fire(true, "Hello World!")
 ```
 :::
@@ -131,14 +131,14 @@ This function have rate limiting it self and configured from server.
 Semiliar to `:InvokeServer`,  but it have timeout system that not exists on `RemoteFunction.InvokeServer`.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	timeout: number,
 	...: any
 ) -> (...any)
 ```
 
-```lua [Example]
+```luau [Example]
 local Request = Remote:Invoke(2, "Hello World!") -- this yield until it response
 ```
 :::

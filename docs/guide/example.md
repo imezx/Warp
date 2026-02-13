@@ -1,71 +1,76 @@
-# Example <Badge type="tip" text="1.0" />
+# Example <Badge type="tip" text="1.1" />
 
 Let's try and play something with Warp!
 
 ::: code-group
-```lua [Server]
-local Warp = require("path.to.module")
+```luau [Schemas]
+local Schema = require(path.to.warp).Buffer.Schema
 
--- Events
-local Example = Warp.Server("Example")
-local Ping = Warp.Server("Ping")
-local Pong = Warp.Server("Pong")
-local PingAll = Warp.Server("PingAll")
+return {
+    Example = Schema.array(Schema.string()),
+    Ping = Schema.string(),
+    Pong = Schema.string(),
+    PingAll = Schema.string(),
+}
+```
+```luau [Server]
+local Warp = require(path.to.warp).Server()
+local Schemas = require(path.to.schemas)
 
-Example:Connect(function(player, arg1, arg2)
-    print(arg1, arg2)
-    return "Whooo!"
+-- Use schemas
+for eventName, schema in Schemas do
+    Warp.useSchema(eventName, schema)
+end
+
+Warp.Connect("Example", function(player, arg)
+    print(table.unpack(arg))
+    return "Hey!"
 end)
-
-Ping:Connect(function(player, ping)
+Warp.Connect("Ping", function(player, ping)
     if ping then
         print("PING!")
-        Pong:Fire(true, player, "pong!")
-        PingAll:Fires(true, "ey!")
+        Warp.Fire("Pong", true, player, "pong!") -- Fire to spesific player through reliable event
+        Warp.Fire("PingAll", true, "ey!") -- Fire to all clients through reliable event
     end
 end)
 ```
 
-```lua [Client]
+```luau [Client]
 local Players = game:GetService("Players")
-local Warp = require("path.to.module")
+local Warp = require(path.to.warp).Client()
+local Schemas = require(path.to.schemas)
 
--- Events
-local Example = Warp.Client("Example")
-local Ping = Warp.Client("Ping")
-local Pong = Warp.Client("Pong")
-local PingAll = Warp.Client("PingAll")
+-- Use schemas
+for eventName, schema in Schemas do
+    Warp.useSchema(eventName, schema)
+end
 
 -- Connect the events
 local connection1
-connection1 = Pong:Connect(function(pong: boolean)
+connection1 = Warp.Connect("Pong", function(pong: boolean) -- we store the connection so we can disconnect it later
     if pong then
         print("PONG!")
     end
 end)
-
-PingAll:Connect(function(isPing: boolean)
+Warp.Connect("PingAll", function(isPing: boolean)
     if isPing then
         print("I GET PINGED!")
     end
 end)
 
 -- Try request a event from server!
-print(Example:Invoke(5, "Hello!", "this is from > "..Players.LocalPlayer.Name))
+print(Warp.Invoke("Example", 1, { "Hello!", `this is from: @{Players.LocalPlayer.Name}` }))
 -- Do a ping & pong to server!
-Ping:Fire(true, "ping!")
+Warp.Fire("Ping", true, "ping!") -- we send through reliable event
 
 task.wait(1) -- lets wait 1 seconds!
 
 -- Disconnect All the events
-Pong:DisconnectAll()
-PingAll:DisconnectAll()
--- or Just disconnect spesific connection
-Pong:Disconnect(connection1)
+connection1:DisconnectAll()
+-- or just disconnect spesific connection
+Warp.Disconnect("PingAll")
 
 -- Destroying/Deleting a Event?
-Pong:Destroy()
-
--- Yay Done!
+Warp.Destroy("Pong")
 ```
 :::

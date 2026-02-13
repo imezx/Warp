@@ -13,14 +13,14 @@ local Client = Warp.Client()
 Connect to an event to receive incoming data from the server.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	remoteName: string,
 	fn: (...any) -> ...any
 ) -> Connection
 ```
 
-```lua [Example]
+```luau [Example]
 local connection = Client.Connect("ServerNotify", function(message, sender)
 	print(`Server message from {sender}: {message}`)
 end)
@@ -33,14 +33,14 @@ print(connection.Connected)
 Similar to `:Connect` but automatically disconnects after the first firing.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	remoteName: string,
 	fn: (...any) -> ...any
 ) -> Connection
 ```
 
-```lua [Example]
+```luau [Example]
 Client.Once("WelcomeMessage", function(welcomeText)
 	print(`Welcome: {welcomeText}`)
 end)
@@ -52,13 +52,13 @@ end)
 Wait for an event to be triggered.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	remoteName: string
 ) -> (number, ...any)
 ```
 
-```lua [Example]
+```luau [Example]
 local elapsed, message = Client.Wait("ServerMessage")
 print(`Received message after {elapsed} seconds: {message}`)
 ```
@@ -69,11 +69,11 @@ print(`Received message after {elapsed} seconds: {message}`)
 Disconnect the event connection.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 ()
 ```
 
-```lua [Example]
+```luau [Example]
 local connection = Client.Connect("ServerNotify", function(message, sender)
 	print(`Server message from {sender}: {message}`)
 	-- Disconnect the connection
@@ -88,13 +88,13 @@ print(Connection.Connected)
 Disconnect all connections for a specific event.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	remoteName: string
 )
 ```
 
-```lua [Example]
+```luau [Example]
 Client.DisconnectAll("ServerNotify")
 ```
 :::
@@ -104,13 +104,13 @@ Client.DisconnectAll("ServerNotify")
 Disconnect all connections and remove the event.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	remoteName: string
 )
 ```
 
-```lua [Example]
+```luau [Example]
 Client.Destroy("ServerNotify")
 ```
 :::
@@ -120,7 +120,7 @@ Client.Destroy("ServerNotify")
 Fire an event to the server.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	remoteName: string,
 	reliable: boolean,
@@ -128,7 +128,7 @@ Fire an event to the server.
 )
 ```
 
-```lua [Example]
+```luau [Example]
 -- (TCP) Reliable event (guaranteed delivery)
 Client.Fire("PlayerAction", true, "jump", playerPosition)
 
@@ -142,7 +142,7 @@ Client.Fire("PositionUpdate", false, currentPosition)
 Invoke the server with timeout support.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	remoteName: string,
 	timeout: number?,
@@ -150,7 +150,7 @@ Invoke the server with timeout support.
 ) -> ...any
 ```
 
-```lua [Example]
+```luau [Example]
 local Client = Warp.Client()
 local response = Client.Invoke("RequestData", 3, "playerStats")
 if response then
@@ -170,14 +170,14 @@ This function is yielded. Returns `nil` if timeout occurs.
 Define a schema for strict data packing on a specific event.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	remoteName: string,
 	schema: Buffer.SchemaType
 )
 ```
 
-```lua [Example]
+```luau [Example]
 local Client = Warp.Client()
 
 -- Define a schema for position updates

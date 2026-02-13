@@ -7,13 +7,13 @@ A alternative of BindableEvent.
 Create new Signal.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	Identifier: string
 )
 ```
 
-```lua [Example]
+```luau [Example]
 local Signal1 = Warp.Signal("Signal1")
 ```
 :::
@@ -23,13 +23,13 @@ local Signal1 = Warp.Signal("Signal1")
 Create new Signal.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
     { string }
 )
 ```
 
-```lua [Example]
+```luau [Example]
 local Signals = Warp.fromSignalArray({"Signal1", "Signal2"})
 Signals.Signal1:Connect(function(...) end)
 Signals.Signal2:Connect(function(...) end)
@@ -39,13 +39,13 @@ Signals.Signal2:Connect(function(...) end)
 ## `:Connect`
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	callback: (...any) -> ()
 )
 ```
 
-```lua [Example]
+```luau [Example]
 Signal1:Connect(function(...)
 	print(...)
 end)
@@ -57,13 +57,13 @@ end)
 This function likely `:Connect` but it disconnect the signal once it fired.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	callback: (...any) -> ()
 )
 ```
 
-```lua [Example]
+```luau [Example]
 Signal1:Once(function(...)
 	print(...)
 end)
@@ -75,13 +75,13 @@ end)
 Disconnect the signal connection.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	key: string
 )
 ```
 
-```lua [Example]
+```luau [Example]
 local connection = Signal1:Connect(function(...) end) -- store the key
 
 Signal1:Disconnect(connection)
@@ -96,7 +96,7 @@ This requires `key` to disconnect a signal connection.
 
 Disconnect All signal connections.
 
-```lua [Example]
+```luau [Example]
 Signal1:DisconnectAll()
 ```
 
@@ -105,13 +105,13 @@ Signal1:DisconnectAll()
 Fire the signal (Immediate)
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	...: any
 )
 ```
 
-```lua [Example]
+```luau [Example]
 Signal1:Fire("Hello World!")
 ```
 :::
@@ -121,13 +121,13 @@ Signal1:Fire("Hello World!")
 Fire the signal (Deferred)
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	...: any
 )
 ```
 
-```lua [Example]
+```luau [Example]
 Signal1:Fire("Hello World!")
 ```
 :::
@@ -141,14 +141,14 @@ This uses `pcall`, which means it never error (safe-mode, sacrificed debugging),
 Fire to other signal, this uses `:Fire`.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
     signal: string,
 	...: any
 )
 ```
 
-```lua [Example]
+```luau [Example]
 Signals.Signal1:FireTo("Signal2", "Hello World!")
 ```
 :::
@@ -160,14 +160,14 @@ This requires `key`.
 ## `:Invoke` <Badge type="warning" text="yield" />
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
     key: string,
 	...: any
 ) -> (...any)
 ```
 
-```lua [Example]
+```luau [Example]
 local connection = Signal1:Conenct(function(...) return "hey!" end)
 local Request = Signal1:Invoke(connection, "Hello World!")
 ```
@@ -178,7 +178,7 @@ local Request = Signal1:Invoke(connection, "Hello World!")
 this use `:Invoke`.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
     signal: string,
     key: string,
@@ -186,7 +186,7 @@ this use `:Invoke`.
 ) -> (...any)
 ```
 
-```lua [Example]
+```luau [Example]
 local connection2 = Signals.Signal2:Conenct(function(...) return "hey!" end)
 local Request = Signals.Signal1:Invoke("Signal2", connection2, "Hello World!")
 ```

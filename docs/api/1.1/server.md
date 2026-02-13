@@ -13,14 +13,14 @@ local Server = Warp.Server()
 Connect to an event to receive incoming data from clients.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	remoteName: string,
 	fn: (player: Player, ...any) -> ...any
 ) -> Connection
 ```
 
-```lua [Example]
+```luau [Example]
 local connection = Server.Connect("ServerNotify", function(player, message)
 	print(`Client message from {player}: {message}`)
 end)
@@ -33,14 +33,14 @@ print(connection.Connected)
 Similar to `:Connect` but automatically disconnects after the first firing.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	remoteName: string,
 	fn: (player: Player, ...any) -> ...any
 ) -> Connection
 ```
 
-```lua [Example]
+```luau [Example]
 Server.Once("WelcomeMessage", function(welcomeText)
 	print(`Welcome: {welcomeText}`)
 end)
@@ -52,13 +52,13 @@ end)
 Wait for an event to be triggered.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	remoteName: string
 ) -> (number, ...any)
 ```
 
-```lua [Example]
+```luau [Example]
 local elapsed, message = Server.Wait("ServerMessage")
 print(`Received message after {elapsed} seconds: {message}`)
 ```
@@ -69,13 +69,13 @@ print(`Received message after {elapsed} seconds: {message}`)
 Disconnect all connections for a specific event.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	remoteName: string
 )
 ```
 
-```lua [Example]
+```luau [Example]
 Server.DisconnectAll("ServerNotify")
 ```
 :::
@@ -85,13 +85,13 @@ Server.DisconnectAll("ServerNotify")
 Disconnect all connections and remove the event.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	remoteName: string
 )
 ```
 
-```lua [Example]
+```luau [Example]
 Server.Destroy("ServerNotify")
 ```
 :::
@@ -101,7 +101,7 @@ Server.Destroy("ServerNotify")
 Fire an event to a specific player.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	remoteName: string,
 	reliable: boolean,
@@ -110,7 +110,7 @@ Fire an event to a specific player.
 )
 ```
 
-```lua [Example]
+```luau [Example]
 Server.Fire("ServerNotify", true, player, "Hello from server!")
 ```
 :::
@@ -120,7 +120,7 @@ Server.Fire("ServerNotify", true, player, "Hello from server!")
 Fire an event to all connected players.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	remoteName: string,
 	reliable: boolean,
@@ -128,7 +128,7 @@ Fire an event to all connected players.
 )
 ```
 
-```lua [Example]
+```luau [Example]
 Server.Fires("Broadcast", true, "Server announcement!")
 ```
 :::
@@ -138,7 +138,7 @@ Server.Fires("Broadcast", true, "Server announcement!")
 Fire an event to all players except specified ones.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	remoteName: string,
 	reliable: boolean,
@@ -147,7 +147,7 @@ Fire an event to all players except specified ones.
 )
 ```
 
-```lua [Example]
+```luau [Example]
 local excludedPlayers = { player1, player2 }
 Server.FireExcept("Update", true, excludedPlayers, "Game update")
 ```
@@ -158,7 +158,7 @@ Server.FireExcept("Update", true, excludedPlayers, "Game update")
 Invoke a client with timeout support.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	remoteName: string,
 	player: Player,
@@ -167,7 +167,7 @@ Invoke a client with timeout support.
 ) -> ...any
 ```
 
-```lua [Example]
+```luau [Example]
 local response = Server.Invoke("RequestData", player, 3, "userInfo")
 if response then
 	print("Client responded:", response)
@@ -186,14 +186,14 @@ This function is yielded. Returns `nil` if timeout occurs.
 Define a schema for strict data packing on a specific event.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	remoteName: string,
 	schema: Buffer.SchemaType
 )
 ```
 
-```lua [Example]
+```luau [Example]
 local Server = Warp.Server()
 
 local dataSchema = Server.Schema.struct({

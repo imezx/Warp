@@ -58,13 +58,13 @@ Define strict data schemas for optimized serialization and type safety.
 Create a new buffer writer for serializing data.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	capacity: number? -- Optional initial capacity (default: 64)
 ): Writer
 ```
 
-```lua [Example]
+```luau [Example]
 local Buffer = Warp.Buffer()
 local writer = Buffer.createWriter(256) -- Pre-allocate 256 bytes
 ```
@@ -75,13 +75,13 @@ local writer = Buffer.createWriter(256) -- Pre-allocate 256 bytes
 Build the final buffer for transmission.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	writer: Writer
 ): buffer -- Returns buffer
 ```
 
-```lua [Example]
+```luau [Example]
 local Buffer = Warp.Buffer()
 local writer = Buffer.createWriter()
 
@@ -100,13 +100,13 @@ print(buffer.len(finalBuffer))
 Build the final buffer with instance references for transmission.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	writer: Writer
 ): (buffer, { Instance }?) -- Returns buffer and optional instance references
 ```
 
-```lua [Example]
+```luau [Example]
 local Buffer = Warp.Buffer()
 local writer = Buffer.createWriter()
 
@@ -125,13 +125,13 @@ print(buffer.len(finalBuffer), refs)
 Reset a writer for reuse, clearing all data.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	writer: Writer
 )
 ```
 
-```lua [Example]
+```luau [Example]
 local Buffer = Warp.Buffer()
 local writer = Buffer.createWriter()
 

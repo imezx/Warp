@@ -7,7 +7,7 @@ For Server-sided
 Create new Warp event.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	Identifier: string,
 	rateLimit: {
@@ -17,7 +17,7 @@ Create new Warp event.
 )
 ```
 
-```lua [Example]
+```luau [Example]
 local Remote = Warp.Server("Remote")
 ```
 :::
@@ -27,13 +27,13 @@ local Remote = Warp.Server("Remote")
 Create new Warp events with array.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	{ any }
 )
 ```
 
-```lua [Example]
+```luau [Example]
 local Events = Warp.fromServerArray({
 	["Remote1"] = {
 		rateLimit = {
@@ -60,14 +60,14 @@ Events.Remote3:Connect(function(player, ...) end)
 Connect event to receive incoming from client way.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	player: Player,
 	callback: (...any) -> ()
 ): string
 ```
 
-```lua [Example]
+```luau [Example]
 Remote:Connect(function(player, ...)
 	print(player, ...)
 end)
@@ -79,14 +79,14 @@ end)
 This function likely `:Connect` but it disconnect the event once it fired.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	player: Player,
 	callback: (...any) -> ()
 )
 ```
 
-```lua [Example]
+```luau [Example]
 Remote:Once(function(player, ...)
 	print(player, ...)
 end)
@@ -98,13 +98,13 @@ end)
 Disconnect the event connection.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	key: string
 ): boolean
 ```
 
-```lua [Example]
+```luau [Example]
 local connection = Remote:Connect(function(player, ...) end) -- store the key
 
 Remote:Disconnect(connection)
@@ -115,7 +115,7 @@ Remote:Disconnect(connection)
 
 Disconnect All the event connection.
 
-```lua [Example]
+```luau [Example]
 Remote:DisconnectAll()
 ```
 
@@ -124,7 +124,7 @@ Remote:DisconnectAll()
 Fire the event to a client.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	reliable: boolean,
     player: Player,
@@ -132,7 +132,7 @@ Fire the event to a client.
 )
 ```
 
-```lua [Example]
+```luau [Example]
 Remote:Fire(true, player, "Hello World!")
 ```
 :::
@@ -142,14 +142,14 @@ Remote:Fire(true, player, "Hello World!")
 Fire the event to all clients.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	reliable: boolean,
 	...: any
 )
 ```
 
-```lua [Example]
+```luau [Example]
 Remote:Fires(true, "Hello World!")
 ```
 :::
@@ -159,7 +159,7 @@ Remote:Fires(true, "Hello World!")
 Fire the event to all clients but except a players.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	reliable: boolean,
 	except: { Player },
@@ -167,7 +167,7 @@ Fire the event to all clients but except a players.
 )
 ```
 
-```lua [Example]
+```luau [Example]
 Remote:FireExcept(true, { Players.Eternity_Devs, Players.Player2 }, "Hello World!") -- this will sent to all players except { Players.Eternity_Devs, Players.Player2 }.
 ```
 :::
@@ -177,7 +177,7 @@ Remote:FireExcept(true, { Players.Eternity_Devs, Players.Player2 }, "Hello World
 Semiliar to `:InvokeClient`,  but it have timeout system that not exists on `RemoteFunction.InvokeClient`.
 
 ::: code-group
-```lua [Variable]
+```luau [Variable]
 (
 	timeout: number,
     player: Player,
@@ -185,7 +185,7 @@ Semiliar to `:InvokeClient`,  but it have timeout system that not exists on `Rem
 ) -> (...any)
 ```
 
-```lua [Example]
+```luau [Example]
 local Request = Remote:Invoke(2, player, "Hello World!")
 ```
 :::
