@@ -10,9 +10,6 @@ export type Writer = {
 
 local DEFAULT_CAPACITY: number = 64
 
-local F16_SUBNORMAL_MULT = 2 ^ (-14)
-local F16_SUBNORMAL_SCALE = 2 ^ 24
-
 -- 0x00-0x7F: + fixint (0-127) - single byte
 -- 0x80-0x9F: - fixint (-32 to -1) - single byte
 local T_NIL = 0xA0
@@ -1650,7 +1647,7 @@ local function writeEvents(w: Writer, events: { { any } }, schemas: { [number]: 
 	for _, event in events do
 		local id = event[1]
 		local args = event[2]
-		wU16(w, id)
+		wByte(w, id)
 		local schema = schemas[id]
 		if schema then
 			packStrict(w, schema, args[1])
@@ -1665,8 +1662,8 @@ local function readEvents(buf: buffer, refs: { any }?, schemas: { [number]: Sche
 	count, pos = readVarUInt(buf, pos)
 	local events = table.create(count)
 	for i = 1, count do
-		local id: number = buffer.readu16(buf, pos)
-		pos += 2
+		local id: number = buffer.readu8(buf, pos)
+		pos += 1
 		local args: any
 		local schema = schemas[id]
 		if schema then

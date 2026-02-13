@@ -37,8 +37,8 @@ end)
 
 ```luau [Client]
 local Players = game:GetService("Players")
-local Warp = require(path.to.warp).Client()
-local Schemas = require(path.to.schemas)
+local Warp = require(game.ReplicatedStorage.WarpNew).Client()
+local Schemas = require(game.ReplicatedStorage.Schemas)
 
 -- Use schemas
 for eventName, schema in Schemas do
@@ -64,6 +64,8 @@ task.wait(3) -- lets wait a few seconds, let the server do the things first!
 print(Warp.Invoke("Example", 1, { "Hello!", `this is from: @{Players.LocalPlayer.Name}` }))
 -- Do a ping & pong to server!
 Warp.Fire("Ping", true, "ping!") -- we send through reliable event
+
+task.wait(1) -- lets wait for a second!
 
 -- Disconnect All the events
 connection1:Disconnect()
