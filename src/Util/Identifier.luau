@@ -18,17 +18,17 @@ return function(name: string): number
 		return cached
 	end
 
-	local h: number = 2166136261
+	local h = 2166136261 + game.PlaceVersion
 	for i = 1, #name do
 		h = bit32.bxor(h, string.byte(name, i))
 		h = bit32.band(h * 16777619, 0xFFFFFFFF)
 	end
 
-	local id = h % 254 + 2
+	local id = h % 65534 + 2
 
 	local existing = used[id]
 	if existing and existing ~= name then
-		warn(`[Warp] Hash collision: "{name}" & "{existing}" both map to ID {id}`)
+		error(`[Warp] Hash collision: "{name}" & "{existing}" both map to ID {id}. Rename one.`)
 	end
 
 	cache[name] = id
