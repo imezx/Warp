@@ -1647,7 +1647,7 @@ local function writeEvents(w: Writer, events: { { any } }, schemas: { [number]: 
 	for _, event in events do
 		local id = event[1]
 		local args = event[2]
-		wByte(w, id)
+		wU16(w, id)
 		local schema = schemas[id]
 		if schema then
 			packStrict(w, schema, args[1])
@@ -1662,8 +1662,8 @@ local function readEvents(buf: buffer, refs: { any }?, schemas: { [number]: Sche
 	count, pos = readVarUInt(buf, pos)
 	local events = table.create(count)
 	for i = 1, count do
-		local id: number = buffer.readu8(buf, pos)
-		pos += 1
+		local id: number = buffer.readu16(buf, pos)
+		pos += 2
 		local args: any
 		local schema = schemas[id]
 		if schema then
