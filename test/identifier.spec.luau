@@ -4,6 +4,8 @@ return function()
 	local ReplicatedStorage = game:GetService("ReplicatedStorage")
 	local WarpModule = ReplicatedStorage:WaitForChild("Warp")
 	local Identifier = require(WarpModule:WaitForChild("Util"):WaitForChild("Identifier"))
+	
+	local U16_MAX, U16_MIN = 65535, 2
 
 	describe("Warp.Identifier", function()
 		it("returns a number", function()
@@ -16,10 +18,10 @@ return function()
 			expect(result == math.floor(result)).to.equal(true)
 		end)
 
-		it("returns a value within 0-255 range (8-bit)", function()
+		it(`returns a value within {U16_MIN}-{U16_MAX} range (8-bit)`, function()
 			local result = Identifier("TestEvent")
-			expect(result >= 0).to.equal(true)
-			expect(result <= 255).to.equal(true)
+			expect(result >= U16_MIN).to.equal(true)
+			expect(result <= U16_MAX).to.equal(true)
 		end)
 
 		it("is deterministic (same name returns same value)", function()
@@ -39,23 +41,23 @@ return function()
 		it("handles empty string", function()
 			local result = Identifier("")
 			expect(type(result)).to.equal("number")
-			expect(result >= 0).to.equal(true)
-			expect(result <= 255).to.equal(true)
+			expect(result >= U16_MIN).to.equal(true)
+			expect(result <= U16_MAX).to.equal(true)
 		end)
 
 		it("handles single character strings", function()
 			local result = Identifier("A")
 			expect(type(result)).to.equal("number")
-			expect(result >= 0).to.equal(true)
-			expect(result <= 255).to.equal(true)
+			expect(result >= U16_MIN).to.equal(true)
+			expect(result <= U16_MAX).to.equal(true)
 		end)
 
 		it("handles long strings", function()
 			local longName = string.rep("abcdefghij", 100)
 			local result = Identifier(longName)
 			expect(type(result)).to.equal("number")
-			expect(result >= 0).to.equal(true)
-			expect(result <= 255).to.equal(true)
+			expect(result >= U16_MIN).to.equal(true)
+			expect(result <= U16_MAX).to.equal(true)
 		end)
 
 		it("produces at least some distinct values for different names", function()
@@ -64,7 +66,7 @@ return function()
 			for _, name in names do
 				unique[Identifier(name)] = true
 			end
-			local count = 0
+			local count = U16_MIN
 			for _ in unique do
 				count += 1
 			end
@@ -75,8 +77,8 @@ return function()
 		it("stays within 8-bit range across many inputs", function()
 			for i = 1, 500 do
 				local result = Identifier(`Event{i}`)
-				expect(result >= 0).to.equal(true)
-				expect(result <= 255).to.equal(true)
+				expect(result >= U16_MIN).to.equal(true)
+				expect(result <= U16_MAX).to.equal(true)
 				expect(result == math.floor(result)).to.equal(true)
 			end
 		end)
@@ -104,8 +106,8 @@ return function()
 			for _, name in specialNames do
 				local result = Identifier(name)
 				expect(type(result)).to.equal("number")
-				expect(result >= 0).to.equal(true)
-				expect(result <= 255).to.equal(true)
+				expect(result >= U16_MIN).to.equal(true)
+				expect(result <= U16_MAX).to.equal(true)
 			end
 		end)
 
@@ -114,10 +116,10 @@ return function()
 			local b = Identifier("456")
 			expect(type(a)).to.equal("number")
 			expect(type(b)).to.equal("number")
-			expect(a >= 0).to.equal(true)
-			expect(a <= 255).to.equal(true)
-			expect(b >= 0).to.equal(true)
-			expect(b <= 255).to.equal(true)
+			expect(a >= U16_MIN).to.equal(true)
+			expect(a <= U16_MAX).to.equal(true)
+			expect(b >= U16_MIN).to.equal(true)
+			expect(b <= U16_MAX).to.equal(true)
 		end)
 
 		it("different names that are similar still hash correctly", function()
@@ -128,9 +130,9 @@ return function()
 			expect(type(b)).to.equal("number")
 			expect(type(c)).to.equal("number")
 			-- all in range
-			expect(a >= 0 and a <= 255).to.equal(true)
-			expect(b >= 0 and b <= 255).to.equal(true)
-			expect(c >= 0 and c <= 255).to.equal(true)
+			expect(a >= U16_MIN and a <= U16_MAX).to.equal(true)
+			expect(b >= U16_MIN and b <= U16_MAX).to.equal(true)
+			expect(c >= U16_MIN and c <= U16_MAX).to.equal(true)
 		end)
 	end)
 end
