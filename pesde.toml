@@ -9,8 +9,6 @@ includes = [
   "README.md",
   "LICENSE",
   "src/**/*.luau",
-  "docs/**/*.md",
-  "docs/**/*.png",
 ]
 
 [target]
