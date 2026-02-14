@@ -22,32 +22,29 @@ Define strict data schemas for optimized serialization and type safety.
 	"nil",
 	
 	-- Numeric types
-	"uint8",
-	"uint16", 
-	"uint32",
-	"int8",
-	"int16",
-	"int32",
-	"float32",
-	"float64",
+	"u8",
+	"u16", 
+	"u32",
+	"i8",
+	"i16",
+	"i32",
+	"f16",
+	"f32",
+	"f64",
 	
 	-- Roblox types
 	"buffer"
-	"Vector2",
-	"Vector3",
-	"CFrame",
-	"Color3",
-	"BrickColor",
-	"Instance",
-	"EnumItem",
-	"Enum",
-	"UDim2",
-	"UDim",
-	"Rect",
-	"NumberRange",
-	"Ray",
-	"ColorSequence",
-	"NumberSequence",
+	"vector2",
+	"vector3",
+	"cframe",
+	"color3",
+	"instance",
+
+	-- other types
+	"optional",
+	"array",
+	"map",
+	"struct",
 }
 ```
 
