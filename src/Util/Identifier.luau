@@ -23,19 +23,19 @@ return function(name: string): number
 	if cached then
 		return cached
 	end
+
 	local b: number = hash
 	for i = 1, #name do
 		b = bit32.bxor(bit32.lshift(b, 5) + b, string.byte(name, i))
 	end
-	local reduced = bit32.band(b, MAX_VALUE)
-	if reduced < 2 then
-		reduced += 2
-	end
+
+	local reduced: number = (b % (MAX_VALUE - 2)) + 2
 	local existing = used[reduced]
 	if existing and existing ~= name then
 		error(`[Warp] Hash collision: "{name}" & "{existing}" both map to ID {reduced}. Rename one.`)
 	end
-	used[name] = reduced
+
+	used[reduced] = name
 	cache[name] = reduced
 	count += 1
 	return reduced
