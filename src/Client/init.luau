@@ -21,8 +21,6 @@ type Event = {
 	c: (Player, ...any?) -> ...any?,
 }
 
-local identifiers: { [string]: number } = {}
-
 local queueEvent: { { any } } = {}
 local queueUnreliableEvent: { { any } } = {}
 local eventListeners: { Event } = {}
