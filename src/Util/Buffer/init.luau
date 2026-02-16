@@ -1146,7 +1146,7 @@ function Schema.struct(fields: { [string]: SchemaType }): SchemaType
 	return { type = "struct", fields = orderedFields }
 end
 
-function Schema.custom_datatype(name: string, object: { any }, writer: (w: Writer, v: any) -> (), reader: (b: buffer, c: number, refs: { Instance }?) -> (buffer, number))
+function Schema.custom_datatype(name: string, object: { any }, writer: (w: Writer, v: any) -> (), reader: (b: buffer, c: number, refs: { Instance }?) -> (any, number))
 	if Schema[name] then
 		warn(`[Warp.Schema]: this 'custom_datatype': "{name}" is already exists, try changing the name.`)
 		return
