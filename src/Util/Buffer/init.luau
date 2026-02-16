@@ -9,6 +9,7 @@ export type Writer = {
 }
 
 local DEFAULT_CAPACITY: number = 64
+local NaN_VALUE: number = 0/0
 
 -- 0x00-0x7F: + fixint (0-127) - single byte
 -- 0x80-0x9F: - fixint (-32 to -1) - single byte
@@ -65,13 +66,13 @@ local T_COLSEQ = 0xF2 -- ColorSequence
 local T_NUMSEQ = 0xF3 -- NumberSequence
 local T_BOOL_ARR = 0xDD
 
-local F16_LOOKUP = table.create(65536)
+local F16_LOOKUP: { number } = table.create(65536, 0)
 do -- precomputes for readf16
 	for raw = 0, 65535 do
-		local sign = bit32.btest(raw, 0x8000) and -1 or 1
-		local exponent = bit32.extract(raw, 10, 5)
-		local mantissa = bit32.band(raw, 0x03FF)
-		local value
+		local sign: number = bit32.btest(raw, 0x8000) and -1 or 1
+		local exponent: number = bit32.extract(raw, 10, 5)
+		local mantissa: number = bit32.band(raw, 0x03FF)
+		local value: number
 		if exponent == 0 then
 			if mantissa == 0 then
 				value = 0 * sign
@@ -82,12 +83,15 @@ do -- precomputes for readf16
 			if mantissa == 0 then
 				value = sign * math.huge
 			else
-				value = 0/0 -- nan
+				value = NaN_VALUE -- nan
 			end
 		else
 			value = sign * (1 + mantissa / 1024) * math.ldexp(1, exponent - 15)
 		end
 		F16_LOOKUP[raw + 1] = value
+		if raw % 500 == 0 then
+			task.wait()
+		end
 	end
 end
 
