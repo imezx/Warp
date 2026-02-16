@@ -37,7 +37,8 @@ Define strict data schemas for optimized serialization and type safety.
 	"vector2",
 	"vector3",
 	"cframe",
-	"color3",
+	"color3", -- u8
+	"color3f16",
 	"instance",
 
 	-- other types
@@ -47,6 +48,37 @@ Define strict data schemas for optimized serialization and type safety.
 	"struct",
 }
 ```
+
+## Custom Datatypes
+
+### `.custom_datatype`
+
+::: code-group
+```luau [Variable]
+(
+	name: string,
+	object: { any },
+	writer: (w: Writer, v: any) -> (),
+	reader: (b: buffer, c: number, refs: { Instance }?) -> (buffer, number))
+): Writer
+```
+
+```luau [Example]
+local Buffer = Warp.Buffer()
+
+-- # this custom datatype must be registered on both server & client side
+Buffer.Schema.custom_datatype("u64", {}, function(writer, value)
+	-- writing u64 logics here
+end, function(b, cursor, refs)
+	-- reading u64 logics here
+	return b, cursor
+end)
+
+local DataSchema = Buffer.Schema.struct({
+	LongInteger = Buffer.Schema.u64, -- use the custom datatype
+})
+```
+:::
 
 ## Writer and Reader Functions
 
