@@ -8,6 +8,31 @@ For Server-sided operations.
 local Server = Warp.Server()
 ```
 
+## `.reg_namespaces`
+
+Register namespaces to ensure all of the namespaces is earlier being registered on the server to prevent any unexpected issues on the client.
+but this is optional, you may have to use this if you had a problem with identifier namespace on client.
+
+::: code-group
+```luau [Variable]
+(
+	namespaces: { string },
+) -> Connection
+```
+
+```luau [Example]
+Server.reg_namespaces({
+	"ServerNotify",
+	"ServerMessage",
+	"WelcomeMessage",
+	"Broadcast",
+	"DataReplication",
+	"RequestData",
+	"Update"
+})
+```
+:::
+
 ## `.Connect`
 
 Connect to an event to receive incoming data from clients.
