@@ -22,21 +22,21 @@ Define strict data schemas for optimized serialization and type safety.
 	"nil",
 	
 	-- Numeric types
-	"u8",
+	"u8", -- usigned-int
 	"u16", 
 	"u32",
-	"i8",
+	"i8", -- signed-int
 	"i16",
 	"i32",
-	"f16",
+	"f16", -- floating-point
 	"f32",
 	"f64",
 	
 	-- Roblox types
 	"buffer"
-	"vector2",
-	"vector3",
-	"cframe",
+	"vector2", -- f16
+	"vector3", -- f16
+	"cframe", -- f32 & f16
 	"color3", -- u8
 	"color3f16",
 	"instance",
@@ -60,16 +60,16 @@ Define strict data schemas for optimized serialization and type safety.
 	object: { any },
 	writer: (w: Writer, v: any) -> (),
 	reader: (b: buffer, c: number, refs: { Instance }?) -> (buffer, number))
-): Writer
+)
 ```
 
 ```luau [Example]
 local Buffer = Warp.Buffer()
 
 -- # this custom datatype must be registered on both server & client side
-Buffer.Schema.custom_datatype("u64", {}, function(writer, value)
+Buffer.Schema.custom_datatype("u64", {}, function(w: Buffer.Writer, value: any) -- just for reference
 	-- writing u64 logics here
-end, function(b, cursor, refs)
+end, function(b: buffer, cursor: number, refs)
 	-- reading u64 logics here
 	return b, cursor
 end)
