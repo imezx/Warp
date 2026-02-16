@@ -33,6 +33,7 @@ Client.useSchema = function(remoteName: string, schema: Buffer.SchemaType)
 	local id = Replication.get_id(remoteName)
 	if not id then
 		warn(`[Warp]: ".useSchema"::"{remoteName}" does not exist, likely its not registered on the server yet.`)
+		return
 	end
 	eventSchemas[id] = schema
 end
