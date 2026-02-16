@@ -12,7 +12,30 @@ local identifiers_schema = Buffer.Schema.string
 local writer: Buffer.Writer = Buffer.createWriter()
 local warp_identifier_registry = shared.__warp_identifier_registry
 
-if RunService:IsServer() and not RunService:IsStudio() then
+if RunService:IsClient() or RunService:IsRunMode() then
+	if RunService:IsClient() then
+		_repl.OnClientEvent:Connect(function(b: buffer)
+			if type(b) ~= "buffer" then
+				return
+			end
+			local contents = Buffer.readRepl(b, identifiers_schema)
+			if #contents == 0 then return end
+			for _, content in contents do
+				local id, remote = content[1], content[2]
+				warp_identifier_registry.cache[remote] = id
+				warp_identifier_registry.name[id] = remote
+			end
+		end)
+		_repl:FireServer()
+	end
+
+	Replication.get_id = function(name: string): number
+		return warp_identifier_registry.cache[name]
+	end
+	Replication.get_name = function(name: string): number
+		return warp_identifier_registry.name[name]
+	end
+else
 	local replication_ready: { Player } = {}
 	local replication_id: number = Identifier.get_id("id_replication") or 1
 
@@ -52,30 +75,6 @@ if RunService:IsServer() and not RunService:IsStudio() then
 
 	Replication.remove = function(player: Player)
 		table.remove(replication_ready, table.find(replication_ready, player))
-	end
-
-else
-	if RunService:IsClient() then
-		_repl.OnClientEvent:Connect(function(b: buffer)
-			if type(b) ~= "buffer" then
-				return
-			end
-			local contents = Buffer.readRepl(b, identifiers_schema)
-			if #contents == 0 then return end
-			for _, content in contents do
-				local id, remote = content[1], content[2]
-				warp_identifier_registry.cache[remote] = id
-				warp_identifier_registry.name[id] = remote
-			end
-		end)
-		_repl:FireServer()
-	end
-
-	Replication.get_id = function(name: string): number
-		return warp_identifier_registry.cache[name]
-	end
-	Replication.get_name = function(name: string): number
-		return warp_identifier_registry.name[name]
 	end
 end
 
