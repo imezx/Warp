@@ -95,27 +95,26 @@ end
 
 Server.Destroy = Server.DisconnectAll
 
-Server.Fire = function(remoteName: string, reliable: boolean, player: Player, ...: any?)
-	local targetQueue = reliable and queueEvent or queueUnreliableEvent
-	if not targetQueue[player] then
-		targetQueue[player] = {} :: any
+Server.Fire = function(remoteName: string, player: Player, ...: any?)
+	if not queueEvent[player] then
+		queueEvent[player] = {} :: any
 	end
-	table.insert(targetQueue[player], {
+	table.insert(queueEvent[player], {
 		Identifier.get(remoteName),
 		{ ... } :: any,
 	})
 end
 
-Server.Fires = function(remoteName: string, reliable: boolean, ...: any?)
+Server.Fires = function(remoteName: string, ...: any?)
 	for _, player: Player in players_ready do
-		Server.Fire(remoteName, reliable, player, ...)
+		Server.Fire(remoteName, player, ...)
 	end
 end
 
-Server.FireExcept = function(remoteName: string, reliable: boolean, except: { Player }, ...: any?)
+Server.FireExcept = function(remoteName: string, except: { Player }, ...: any?)
 	for _, player: Player in players_ready do
 		if table.find(except, player) then continue end
-		Server.Fire(remoteName, reliable, player, ...)
+		Server.Fire(remoteName, player, ...)
 	end
 end
 

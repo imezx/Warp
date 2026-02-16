@@ -84,8 +84,8 @@ end
 
 Client.Destroy = Client.DisconnectAll
 
-Client.Fire = function(remoteName: string, reliable: boolean, ...: any?)
-	table.insert(reliable and queueEvent or queueUnreliableEvent, {
+Client.Fire = function(remoteName: string, ...: any?)
+	table.insert(queueEvent, {
 		Replication.get_id(remoteName),
 		{ ... } :: any,
 	})

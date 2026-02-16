@@ -3,6 +3,9 @@
 local Remote = {}
 
 if game.RunService:IsServer() then
+	if not script:FindFirstChild("_repl") then
+		Instance.new("RemoteEvent", script).Name = "_repl"
+	end
 	if not script:FindFirstChild("Event") then
 		Instance.new("RemoteEvent", script).Name = "Event"
 	end
