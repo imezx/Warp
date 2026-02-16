@@ -11,7 +11,10 @@ local Server = Warp.Server()
 ## `.reg_namespaces`
 
 Register namespaces to ensure all of the namespaces is being registered earlier on the server to prevent any unexpected issues on the client.
-but this is optional and conditional, you may have to use this if you had a problem with identifier namespace on client.
+
+::: info
+this is optional and conditional, you may have to use this if you had a problem with identifier namespace on client.
+:::
 
 ::: code-group
 ```luau [Variable]

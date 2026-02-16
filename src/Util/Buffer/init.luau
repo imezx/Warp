@@ -1809,4 +1809,16 @@ BufferSerdes.writeVarUInt = writeVarUInt
 BufferSerdes.readVarUInt = readVarUInt
 BufferSerdes.varUIntSize = varUIntSize
 
+-- for custom datatype usage
+BufferSerdes.ensureSpace = ensureSpace
+BufferSerdes.writeu8 = wByte
+BufferSerdes.writeu16 = wU16
+BufferSerdes.writeu32 = wU32
+BufferSerdes.writei16 = wI16
+BufferSerdes.writei32 = wI32
+BufferSerdes.writef16 = wF16
+BufferSerdes.writef32 = wF32
+BufferSerdes.writef64 = wF64
+BufferSerdes.writestring = wString
+
 return BufferSerdes :: typeof(BufferSerdes)
