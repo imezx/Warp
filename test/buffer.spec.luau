@@ -925,28 +925,28 @@ return function()
 					msg = S.string,
 				}),
 			}
-		
+
 			local payload = {
 				count = 7,
 				msg = "hello",
 			}
-		
+
 			local events = {
 				{ 1, { payload } },
 				{ 2, { 1, 2 } },
 			}
-		
+
 			local w = Buffer.createWriter()
 			Buffer.writeEvents(w, events, schemas)
 			local buf, refs = Buffer.buildWithRefs(w)
-		
+
 			local decoded = Buffer.readEvents(buf, refs, schemas)
 			expect(#decoded).to.equal(2)
-		
+
 			expect(decoded[1][1]).to.equal(1)
 			expect(decoded[1][2][1].count).to.equal(7)
 			expect(decoded[1][2][1].msg).to.equal("hello")
-		
+
 			expect(decoded[2][1]).to.equal(2)
 			expect(decoded[2][2][1]).to.equal(1)
 			expect(decoded[2][2][2]).to.equal(2)
