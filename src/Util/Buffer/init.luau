@@ -89,7 +89,7 @@ do -- precomputes for readf16
 			value = sign * (1 + mantissa / 1024) * math.ldexp(1, exponent - 15)
 		end
 		F16_LOOKUP[raw + 1] = value
-		if raw % 500 == 0 then
+		if raw % 1000 == 0 then
 			task.wait()
 		end
 	end
@@ -1102,6 +1102,7 @@ local function reset(w: Writer)
 end
 
 local Schema = {}
+Schema.__custom_datatypes = {}
 export type SchemaType = { type: string, [any]: any }
 
 Schema.u8 = { type = "u8" }
@@ -1118,6 +1119,7 @@ Schema.vector3 = { type = "vector3" }
 Schema.vector2 = { type = "vector2" }
 Schema.cframe = { type = "cframe" }
 Schema.color3 = { type = "color3" }
+Schema.color3f16 = { type = "color3f16" }
 Schema.instance = { type = "instance" }
 Schema.string = { type = "string" }
 
@@ -1144,8 +1146,26 @@ function Schema.struct(fields: { [string]: SchemaType }): SchemaType
 	return { type = "struct", fields = orderedFields }
 end
 
+function Schema.custom_datatype(name: string, object: { any }, writer: (w: Writer, v: any) -> (), reader: (b: buffer, c: number, refs: { Instance }?) -> (buffer, number))
+	if Schema[name] then
+		warn(`[Warp.Schema]: this 'custom_datatype': "{name}" is already exists, try changing the name.`)
+		return
+	end
+	(object :: any).type = name
+	Schema[name] = object
+	Schema.__custom_datatypes[name] = {
+		writer = writer,
+		reader = reader,
+	}
+end
+
 local function compilePacker(s: SchemaType): (Writer, any) -> ()
 	local schema_type = s.type
+
+	if Schema.__custom_datatypes[schema_type] then
+		return Schema.__custom_datatypes[schema_type].writer
+	end
+
 	if schema_type == "u8" then
 		return wByte
 	end
@@ -1222,6 +1242,14 @@ local function compilePacker(s: SchemaType): (Writer, any) -> ()
 			wByte(w, math.clamp(math.round(v.R * 255), 0, 255))
 			wByte(w, math.clamp(math.round(v.G * 255), 0, 255))
 			wByte(w, math.clamp(math.round(v.B * 255), 0, 255))
+		end
+	end
+
+	if schema_type == "color3f16" then
+		return function(w, v)
+			wF16(w, math.clamp(v.R * 255, 0, 255))
+			wF16(w, math.clamp(v.G * 255, 0, 255))
+			wF16(w, math.clamp(v.B * 255, 0, 255))
 		end
 	end
 
@@ -1381,11 +1409,16 @@ local function compilePacker(s: SchemaType): (Writer, any) -> ()
 		end
 	end
 
-	return function() end
+	return function() return end
 end
 
 local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any, number)
 	local schema_type = s.type
+
+	if Schema.__custom_datatypes[schema_type] then
+		return Schema.__custom_datatypes[schema_type].reader
+	end
+
 	if schema_type == "u8" then
 		return function(b, c)
 			return buffer.readu8(b, c), c + 1
@@ -1466,6 +1499,15 @@ local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any,
 			local g = buffer.readu8(b, c + 1)
 			local bVal = buffer.readu8(b, c + 2)
 			return Color3.fromRGB(r, g, bVal), c + 3
+		end
+	end
+
+	if schema_type == "color3f16" then
+		return function(b, c)
+			local r = readF16(b, c)
+			local g = readF16(b, c + 2)
+			local bVal = readF16(b, c + 4)
+			return Color3.fromRGB(r, g, bVal), c + 6
 		end
 	end
 
