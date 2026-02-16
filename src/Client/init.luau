@@ -30,12 +30,21 @@ local pendingInvokes: { [string]: thread } = {}
 local invokeId = 0
 
 Client.useSchema = function(remoteName: string, schema: Buffer.SchemaType)
-	eventSchemas[Replication.get_id(remoteName)] = schema
+	local id = Replication.get_id(remoteName)
+	if not id then
+		warn(`[Warp]: ".useSchema"::"{remoteName}" does not exist, likely its not registered on the server yet.`)
+	end
+	eventSchemas[id] = schema
 end
 
 Client.Connect = function(remoteName: string, fn: (Player, ...any?) -> ...any?): Connection
+	local id = Replication.get_id(remoteName)
+	if not id then
+		warn(`[Warp]: ".Connect"::"{remoteName}" does not exist, likely its not registered on the server yet.`)
+		return { Connected = false, Disconnect = function() return end } :: Connection
+	end
 	local detail = {
-		i = Replication.get_id(remoteName),
+		i = id,
 		c = fn,
 	}
 	table.insert(eventListeners, detail)
@@ -75,6 +84,9 @@ end
 
 Client.DisconnectAll = function(remoteName: string)
 	local id = Replication.get_id(remoteName)
+	if not id then
+		return
+	end
 	for idx = #eventListeners, 1, -1 do
 		if eventListeners[idx].i == id then
 			table.remove(eventListeners, idx)
@@ -84,14 +96,21 @@ end
 
 Client.Destroy = Client.DisconnectAll
 
-Client.Fire = function(remoteName: string, ...: any?)
-	table.insert(queueEvent, {
-		Replication.get_id(remoteName),
-		{ ... } :: any,
-	})
+Client.Fire = function(remoteName: string, reliable: boolean, ...: any?)
+	local id = Replication.get_id(remoteName)
+	if id then
+		table.insert(reliable and queueEvent or queueUnreliableEvent, {
+			Replication.get_id(remoteName),
+			{ ... } :: any,
+		})
+	end
 end
 
 Client.Invoke = function(remoteName: string, timeout: number?, ...: any?): ...any?
+	local id = Replication.get_id(remoteName)
+	if not id then
+		return nil
+	end
 	invokeId += 1
 	local reqid, thread = `{invokeId}`, coroutine.running()
 
@@ -106,7 +125,7 @@ Client.Invoke = function(remoteName: string, timeout: number?, ...: any?): ...an
 	end)
 	table.insert(queueEvent, {
 		0,
-		{ Replication.get_id(remoteName), reqid :: any, { ... } :: any } :: any,
+		{ id, reqid :: any, { ... } :: any } :: any,
 	})
 	return coroutine.yield()
 end

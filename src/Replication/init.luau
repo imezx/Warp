@@ -14,10 +14,10 @@ local warp_identifier_registry = shared.__warp_identifier_registry
 
 if RunService:IsServer() then
 	local replication_ready: { Player } = {}
-	local replication_id: number = Identifier.get("id_replication") or 1
+	local replication_id: number = Identifier.get_id("id_replication") or 1
 
-	if not Identifier.has("id_replication") or not replication_id then
-		replication_id = Identifier.get("id_replication") or 1
+	if not Identifier.has_name("id_replication") or not replication_id then
+		replication_id = Identifier.get_id("id_replication") or 1
 	end
 
 	local function replicateToAll(content: any, id: number?)
@@ -28,7 +28,7 @@ if RunService:IsServer() then
 			local buf = Buffer.build(writer)
 			Buffer.reset(writer)
 			for _, player: Player in replication_ready do
-				_repl:FireClient(player, buf, replication_id)
+				_repl:FireClient(player, buf)
 			end
 		end
 	end
@@ -38,7 +38,7 @@ if RunService:IsServer() then
 		do
 			local buf = Buffer.build(writer)
 			Buffer.reset(writer)
-			_repl:FireClient(player, buf, replication_id)
+			_repl:FireClient(player, buf)
 		end
 	end
 
@@ -55,20 +55,25 @@ if RunService:IsServer() then
 	end
 
 elseif RunService:IsClient() then
-	_repl.OnClientEvent:Connect(function(b: buffer, id: number)
+	_repl.OnClientEvent:Connect(function(b: buffer)
 		if type(b) ~= "buffer" then
 			return
 		end
 		local contents = Buffer.readRepl(b, identifiers_schema)
 		if #contents == 0 then return end
 		for _, content in contents do
-			warp_identifier_registry.cache[content[2]] = content[1]
+			local id, remote = content[1], content[2]
+			warp_identifier_registry.cache[remote] = id
+			warp_identifier_registry.name[id] = remote
 		end
 	end)
 	_repl:FireServer()
 
 	Replication.get_id = function(name: string): number
 		return warp_identifier_registry.cache[name]
+	end
+	Replication.get_name = function(name: string): number
+		return warp_identifier_registry.name[name]
 	end
 end
 

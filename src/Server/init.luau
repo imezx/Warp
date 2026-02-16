@@ -32,18 +32,24 @@ local queueUnreliableEvent: {
 } = {}
 local eventListeners: { Event } = {}
 local eventSchemas: { [number]: Buffer.SchemaType } = {}
-local players_ready: { Player } = {}
+local players_ready: { Player }, player_bytes: { [Player]: number } = {}, {}
 
 local pendingInvokes: { [string]: thread } = {}
 local invokeId = 0
 
+Server.reg_namespaces = function(namespaces: { string })
+	for _, name: string in namespaces do
+		Identifier.get_id(name)
+	end
+end
+
 Server.useSchema = function(remoteName: string, schema: Buffer.SchemaType)
-	eventSchemas[Identifier.get(remoteName)] = schema
+	eventSchemas[Identifier.get_id(remoteName)] = schema
 end
 
 Server.Connect = function(remoteName: string, fn: (Player, ...any?) -> ...any?): Connection
 	local detail = {
-		i = Identifier.get(remoteName),
+		i = Identifier.get_id(remoteName),
 		c = fn,
 	}
 	table.insert(eventListeners, detail)
@@ -82,7 +88,7 @@ Server.Wait = function(remoteName: string): (number, ...any?)
 end
 
 Server.DisconnectAll = function(remoteName: string)
-	local id = Identifier.get(remoteName)
+	local id = Identifier.get_id(remoteName)
 	if not id then
 		return
 	end
@@ -95,26 +101,27 @@ end
 
 Server.Destroy = Server.DisconnectAll
 
-Server.Fire = function(remoteName: string, player: Player, ...: any?)
-	if not queueEvent[player] then
-		queueEvent[player] = {} :: any
+Server.Fire = function(remoteName: string, reliable: boolean, player: Player, ...: any?)
+	local targetQueue = reliable and queueEvent or queueUnreliableEvent
+	if not targetQueue[player] then
+		targetQueue[player] = {} :: any
 	end
-	table.insert(queueEvent[player], {
-		Identifier.get(remoteName),
+	table.insert(targetQueue[player], {
+		Identifier.get_id(remoteName),
 		{ ... } :: any,
 	})
 end
 
-Server.Fires = function(remoteName: string, ...: any?)
+Server.Fires = function(remoteName: string, reliable: boolean, ...: any?)
 	for _, player: Player in players_ready do
-		Server.Fire(remoteName, player, ...)
+		Server.Fire(remoteName, reliable, player, ...)
 	end
 end
 
-Server.FireExcept = function(remoteName: string, except: { Player }, ...: any?)
+Server.FireExcept = function(remoteName: string, reliable: boolean, except: { Player }, ...: any?)
 	for _, player: Player in players_ready do
 		if table.find(except, player) then continue end
-		Server.Fire(remoteName, player, ...)
+		Server.Fire(remoteName, reliable, player, ...)
 	end
 end
 
@@ -136,7 +143,7 @@ Server.Invoke = function(remoteName: string, player: Player, timeout: number?, .
 	end
 	table.insert(queueEvent[player], {
 		0,
-		{ Identifier.get(remoteName), reqId :: any, { ... } :: any } :: any,
+		{ Identifier.get_id(remoteName), reqId :: any, { ... } :: any } :: any,
 	})
 	return coroutine.yield()
 end
@@ -146,6 +153,10 @@ if RunService:IsServer() then
 		if type(b) ~= "buffer" then
 			return
 		end
+		local bytes: number = (player_bytes[player] or 0) + math.max(buffer.len(b), 800)
+		if bytes > 8e3 then return end
+		player_bytes[player] = bytes
+		
 		local contents = Buffer.readEvents(b, ref, eventSchemas)
 		for _, content in contents do
 			local remote = content[1]
@@ -228,6 +239,7 @@ if RunService:IsServer() then
 					Event:FireClient(player, buf, ref)
 				end
 			end
+			player_bytes[player] = 0
 			table.clear(queueEvent[player])
 		end
 		-- unreliable
@@ -245,6 +257,7 @@ if RunService:IsServer() then
 					UnreliableEvent:FireClient(player, buf, ref)
 				end
 			end
+			table.clear(player_bytes)
 			table.clear(queueUnreliableEvent[player])
 		end
 	end)
@@ -267,6 +280,9 @@ if RunService:IsServer() then
 		if queueEvent[player] then
 			table.clear(queueEvent[player])
 			queueEvent[player] = nil
+		end
+		if player_bytes[player] then
+			player_bytes[player] = nil
 		end
 		if queueUnreliableEvent[player] then
 			table.clear(queueUnreliableEvent[player])
