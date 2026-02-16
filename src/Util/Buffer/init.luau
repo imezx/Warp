@@ -633,9 +633,9 @@ local function packColor3(w: Writer, c: Color3)
 
 	if r > 1 or g > 1 or b > 1 then
 		wByte(w, T_COLOR3_F)
-		wF32(w, r)
-		wF32(w, g)
-		wF32(w, b)
+		wF16(w, r)
+		wF16(w, g)
+		wF16(w, b)
 	else
 		wByte(w, T_COLOR3)
 		wByte(w, math.clamp(math.round(r * 255), 0, 255))
@@ -974,10 +974,10 @@ unpackValue = function(buf: buffer, pos: number, refs: { any }?): (any, number)
 		return Color3.fromRGB(r, g, b), pos + 3
 	end
 	if t == T_COLOR3_F then
-		local r = buffer.readf32(buf, pos)
-		local g = buffer.readf32(buf, pos + 4)
-		local b = buffer.readf32(buf, pos + 8)
-		return Color3.new(r, g, b), pos + 12
+		local r = readF16(buf, pos)
+		local g = readF16(buf, pos + 2)
+		local b = readF16(buf, pos + 4)
+		return Color3.new(r, g, b), pos + 6
 	end
 
 	if t == T_BRICKCOLOR then
@@ -1647,7 +1647,7 @@ local function writeEvents(w: Writer, events: { { any } }, schemas: { [number]: 
 	for _, event in events do
 		local id = event[1]
 		local args = event[2]
-		wU16(w, id)
+		wByte(w, id)
 		local schema = schemas[id]
 		if schema then
 			packStrict(w, schema, args[1])
@@ -1662,8 +1662,8 @@ local function readEvents(buf: buffer, refs: { any }?, schemas: { [number]: Sche
 	count, pos = readVarUInt(buf, pos)
 	local events = table.create(count)
 	for i = 1, count do
-		local id: number = buffer.readu16(buf, pos)
-		pos += 2
+		local id: number = buffer.readu8(buf, pos)
+		pos += 1
 		local args: any
 		local schema = schemas[id]
 		if schema then
@@ -1678,13 +1678,51 @@ local function readEvents(buf: buffer, refs: { any }?, schemas: { [number]: Sche
 	return events
 end
 
+local function writeRepl(w: Writer, content: { [string]: number }, count: number, schema: SchemaType)
+	wVarUInt(w, count)
+	for name, id in content do
+		wByte(w, id)
+		if schema then
+			packStrict(w, schema, name)
+		else
+			packValue(w, name)
+		end
+	end
+end
+
+local function readRepl(buf: buffer, schema: SchemaType): { { any } }
+	local pos, count = 0, 0
+	count, pos = readVarUInt(buf, pos)
+	local events = table.create(count)
+	for i = 1, count do
+		local id: number = buffer.readu8(buf, pos)
+		pos += 1
+		local args: any
+		if schema then
+			local val
+			val, pos = readStrict(buf, pos, schema)
+			args = val
+		else
+			args, pos = unpackValue(buf, pos)
+		end
+		events[i] = { id, args }
+	end
+	return events
+end
+
 local BufferSerdes = {}
+
+BufferSerdes.Schema = Schema
+
+BufferSerdes.writeRepl = writeRepl
+BufferSerdes.readRepl = readRepl
 
 BufferSerdes.writeEvents = writeEvents
 BufferSerdes.readEvents = readEvents
-BufferSerdes.Schema = Schema
+
 BufferSerdes.compilePacker = compilePacker
 BufferSerdes.compileReader = compileReader
+
 BufferSerdes.packStrict = packStrict
 BufferSerdes.readStrict = readStrict
 

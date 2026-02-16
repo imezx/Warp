@@ -1,42 +1,49 @@
 --!optimize 2
---!native
+--!strict
 --@EternityDev
-if not shared.__identifier_cache then
-	shared.__identifier_cache = {
+local BITS: number = 8
+local MAX_VALUE: number = bit32.lshift(1, BITS) - 1
+local hook_fn: (string, number) -> ()
+
+if not shared.__warp_identifier_registry then
+	shared.__warp_identifier_registry = {
 		cache = {} :: { [string]: number },
-		used = {} :: { [number]: string },
-		count = 0 :: number,
+		counter = 0,
 	}
 end
 
-local registry = shared.__identifier_cache
-local cache = registry.cache
-local used = registry.used
-local count = registry.count
+local registry = shared.__warp_identifier_registry
+local function fastAssert(condition: boolean, ...: any)
+	if not condition then
+		error(...)
+	end
+end
 
-local BITS: number = 16
-local MAX_VALUE: number = bit32.lshift(1, BITS) - 1
-local hash: number = game.PlaceVersion + 5381
+local Identifier = {}
 
-return function(name: string): number
-	local cached = cache[name]
+Identifier.on_added = function(fn: (string, number) -> ())
+	fastAssert(hook_fn == nil, ".on_added can only be called once.")
+	hook_fn = fn
+end
+
+Identifier.has = function(name: string): boolean
+	return registry.cache[name] ~= nil
+end
+
+Identifier.get = function(name: string): number
+	local cached = registry.cache[name]
 	if cached then
 		return cached
 	end
 
-	local b: number = hash
-	for i = 1, #name do
-		b = bit32.bxor(bit32.lshift(b, 5) + b, string.byte(name, i))
+	local id = registry.counter + 1
+	fastAssert(id <= MAX_VALUE, `Identifier overflow: exceeded {MAX_VALUE + 1} unique names.`)
+	registry.counter = id
+	registry.cache[name] = id
+	if hook_fn then
+		task.defer(hook_fn, name, id)
 	end
-
-	local reduced: number = (b % (MAX_VALUE - 2)) + 2
-	local existing = used[reduced]
-	if existing and existing ~= name then
-		error(`[Warp] Hash collision: "{name}" & "{existing}" both map to ID {reduced}. Rename one.`)
-	end
-
-	used[reduced] = name
-	cache[name] = reduced
-	count += 1
-	return reduced
+	return id
 end
+
+return Identifier :: typeof(Identifier)

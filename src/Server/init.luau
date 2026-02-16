@@ -8,7 +8,9 @@ local RunService = game:GetService("RunService")
 local Thread = require("./Util/Thread")
 local Buffer = require("./Util/Buffer")
 local Identifier = require("./Util/Identifier")
+local Replication = require("./Replication")
 local Event: RemoteEvent = script.Parent:WaitForChild("Event")
+local _repl: RemoteEvent = script.Parent:WaitForChild("_repl")
 local UnreliableEvent: UnreliableRemoteEvent = script.Parent:WaitForChild("UnreliableEvent")
 local deltaT: number, cycle: number = 0, 1 / 61
 local writer: Buffer.Writer = Buffer.createWriter()
@@ -36,12 +38,12 @@ local pendingInvokes: { [string]: thread } = {}
 local invokeId = 0
 
 Server.useSchema = function(remoteName: string, schema: Buffer.SchemaType)
-	eventSchemas[Identifier(remoteName)] = schema
+	eventSchemas[Identifier.get(remoteName)] = schema
 end
 
 Server.Connect = function(remoteName: string, fn: (Player, ...any?) -> ...any?): Connection
 	local detail = {
-		i = Identifier(remoteName),
+		i = Identifier.get(remoteName),
 		c = fn,
 	}
 	table.insert(eventListeners, detail)
@@ -80,7 +82,7 @@ Server.Wait = function(remoteName: string): (number, ...any?)
 end
 
 Server.DisconnectAll = function(remoteName: string)
-	local id = Identifier(remoteName)
+	local id = Identifier.get(remoteName)
 	if not id then
 		return
 	end
@@ -99,7 +101,7 @@ Server.Fire = function(remoteName: string, reliable: boolean, player: Player, ..
 		targetQueue[player] = {} :: any
 	end
 	table.insert(targetQueue[player], {
-		Identifier(remoteName),
+		Identifier.get(remoteName),
 		{ ... } :: any,
 	})
 end
@@ -135,7 +137,7 @@ Server.Invoke = function(remoteName: string, player: Player, timeout: number?, .
 	end
 	table.insert(queueEvent[player], {
 		0,
-		{ Identifier(remoteName), reqId :: any, { ... } :: any } :: any,
+		{ Identifier.get(remoteName), reqId :: any, { ... } :: any } :: any,
 	})
 	return coroutine.yield()
 end
@@ -261,6 +263,7 @@ if RunService:IsServer() then
 	end
 	Players.PlayerAdded:Connect(onAdded)
 	Players.PlayerRemoving:Connect(function(player: Player)
+		Replication.remove(player)
 		table.remove(players_ready, table.find(players_ready, player))
 		if queueEvent[player] then
 			table.clear(queueEvent[player])

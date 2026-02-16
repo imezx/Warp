@@ -6,7 +6,7 @@ local Client = {}
 local RunService = game:GetService("RunService")
 local Thread = require("./Util/Thread")
 local Buffer = require("./Util/Buffer")
-local Identifier = require("./Util/Identifier")
+local Replication = require("./Replication")
 local Event: RemoteEvent = script.Parent:WaitForChild("Event")
 local UnreliableEvent: UnreliableRemoteEvent = script.Parent:WaitForChild("UnreliableEvent")
 local deltaT: number, cycle: number = 0, 1 / 61
@@ -21,6 +21,8 @@ type Event = {
 	c: (Player, ...any?) -> ...any?,
 }
 
+local identifiers: { [string]: number } = {}
+
 local queueEvent: { { any } } = {}
 local queueUnreliableEvent: { { any } } = {}
 local eventListeners: { Event } = {}
@@ -30,12 +32,12 @@ local pendingInvokes: { [string]: thread } = {}
 local invokeId = 0
 
 Client.useSchema = function(remoteName: string, schema: Buffer.SchemaType)
-	eventSchemas[Identifier(remoteName)] = schema
+	eventSchemas[Replication.get_id(remoteName)] = schema
 end
 
 Client.Connect = function(remoteName: string, fn: (Player, ...any?) -> ...any?): Connection
 	local detail = {
-		i = Identifier(remoteName),
+		i = Replication.get_id(remoteName),
 		c = fn,
 	}
 	table.insert(eventListeners, detail)
@@ -74,7 +76,7 @@ Client.Wait = function(remoteName: string): (number, ...any?)
 end
 
 Client.DisconnectAll = function(remoteName: string)
-	local id = Identifier(remoteName)
+	local id = Replication.get_id(remoteName)
 	for idx = #eventListeners, 1, -1 do
 		if eventListeners[idx].i == id then
 			table.remove(eventListeners, idx)
@@ -86,7 +88,7 @@ Client.Destroy = Client.DisconnectAll
 
 Client.Fire = function(remoteName: string, reliable: boolean, ...: any?)
 	table.insert(reliable and queueEvent or queueUnreliableEvent, {
-		Identifier(remoteName),
+		Replication.get_id(remoteName),
 		{ ... } :: any,
 	})
 end
@@ -106,7 +108,7 @@ Client.Invoke = function(remoteName: string, timeout: number?, ...: any?): ...an
 	end)
 	table.insert(queueEvent, {
 		0,
-		{ Identifier(remoteName), reqid :: any, { ... } :: any } :: any,
+		{ Replication.get_id(remoteName), reqid :: any, { ... } :: any } :: any,
 	})
 	return coroutine.yield()
 end

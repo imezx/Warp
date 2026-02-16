@@ -37,8 +37,8 @@ end)
 
 ```luau [Client]
 local Players = game:GetService("Players")
-local Warp = require(game.ReplicatedStorage.WarpNew).Client()
-local Schemas = require(game.ReplicatedStorage.Schemas)
+local Warp = require(path.to.warp).Client()
+local Schemas = require(path.to.schemas)
 
 -- Use schemas
 for eventName, schema in Schemas do
