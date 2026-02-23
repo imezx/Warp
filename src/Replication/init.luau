@@ -86,7 +86,6 @@ if RunService:IsClient() or RunService:IsRunMode() then
 		if not obj then
 			warn(`[Replication] timeout: could not find identifier '{name}' after {timeout}s.`)
 		end
-
 		return obj
 	end
 	
