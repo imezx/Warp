@@ -29,6 +29,8 @@ local eventSchemas: { [number]: Buffer.SchemaType } = {}
 local pendingInvokes: { [string]: thread } = {}
 local invokeId = 0
 
+Client.awaitReady = Replication.wait_for_ready
+
 Client.useSchema = function(remoteName: string, schema: Buffer.SchemaType)
 	local id = Replication.get_id(remoteName)
 	if not id then
