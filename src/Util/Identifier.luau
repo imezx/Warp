@@ -23,7 +23,7 @@ end
 local Identifier = {}
 
 Identifier.on_added = function(fn: (string, number) -> ())
-	fastAssert(hook_fn == nil, ".on_added can only be called once.")
+	assert(hook_fn == nil, ".on_added can only be called once.")
 	hook_fn = fn
 end
 
