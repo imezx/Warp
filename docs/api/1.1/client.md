@@ -10,7 +10,11 @@ local Client = Warp.Client()
 
 ## `.awaitReady` <Badge type="warning" text="yield" />
 
-Yields the current thread until the client has successfully initialized and synchronized with the server's replication data (identifier). Its optionally, but highly recommended to call this before firing or connecting to any events to ensure the network is fully ready.
+Yields the current thread until the client has successfully initialized and synchronized with the server's replication data (identifier).
+
+::: info
+Its optionally, but highly recommended to call this before firing or connecting to any events to ensure the network is fully ready.
+:::
 
 ::: code-group
 ```luau [Variable]
