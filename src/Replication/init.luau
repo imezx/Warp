@@ -23,7 +23,7 @@ if RunService:IsClient() or RunService:IsRunMode() then
 			local contents = Buffer.readRepl(b, identifiers_schema)
 			if #contents == 0 then return end
 			for _, content in contents do
-				local id, remote = content[1], content[2]
+				local id: number, remote: string = content[1], content[2]
 				warp_identifier_registry.cache[remote] = id
 				warp_identifier_registry.name[id] = remote
 				
@@ -61,59 +61,12 @@ if RunService:IsClient() or RunService:IsRunMode() then
 		coroutine.yield()
 	end
 
-	--@name string
-	--@timeout number (default: 0)
-	Replication.get_id = function(name: string, timeout: number?): number
-		local cached = warp_identifier_registry.cache[name]
-		if cached or type(timeout) ~= "number" then return cached end
-
-		local thread = coroutine.running()
-
-		if not pending_id_yields[name] then pending_id_yields[name] = {} end
-		table.insert(pending_id_yields[name], thread)
-
-		task.delay(timeout, function()
-			if pending_id_yields[name] then
-				local idx = table.find(pending_id_yields[name], thread)
-				if idx then
-					table.remove(pending_id_yields[name], idx)
-					task.spawn(thread, nil)
-				end
-			end
-		end)
-
-		local obj: number = coroutine.yield()
-		if not obj then
-			warn(`[Replication] timeout: could not find identifier '{name}' after {timeout}s.`)
-		end
-		return obj
+	Replication.get_id = function(name: string): number
+		return warp_identifier_registry.cache[name]
 	end
 	
-	--@name string
-	--@timeout number (default: 0)
-	Replication.get_name = function(id: number, timeout: number?): string
-		local cached = warp_identifier_registry.name[id]
-		if cached or type(timeout) ~= "number" then return cached end
-
-		local thread = coroutine.running()
-		if not pending_name_yields[id] then pending_name_yields[id] = {} end
-		table.insert(pending_name_yields[id], thread)
-
-		task.delay(timeout, function()
-			if pending_name_yields[id] then
-				local idx = table.find(pending_name_yields[id], thread)
-				if idx then
-					table.remove(pending_name_yields[id], idx)
-					task.spawn(thread, nil)
-				end
-			end
-		end)
-
-		local obj: string = coroutine.yield()
-		if not id then
-			warn(`[Replication] timeout: could not find identifier '{id}' after {timeout}s.`)
-		end
-		return obj
+	Replication.get_name = function(id: number): string
+		return warp_identifier_registry.name[id]
 	end
 else
 	local replication_ready: { Player }, pending_replications = {}, {}
