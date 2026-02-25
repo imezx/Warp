@@ -61,13 +61,8 @@ if RunService:IsClient() or RunService:IsRunMode() then
 		coroutine.yield()
 	end
 
-	Replication.get_id = function(name: string): number
-		return warp_identifier_registry.cache[name]
-	end
-	
-	Replication.get_name = function(id: number): string
-		return warp_identifier_registry.name[id]
-	end
+	Replication.get_id = warp_identifier_registry.cache
+	Replication.get_name = warp_identifier_registry.name
 else
 	local replication_ready: { Player }, pending_replications = {}, {}
 	local writer: Buffer.Writer = Buffer.createWriter()
