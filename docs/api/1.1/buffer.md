@@ -19,11 +19,10 @@ Define strict data schemas for optimized serialization and type safety.
 	-- Basic types
 	"boolean",
 	"string",
-	"nil",
 	
 	-- Numeric types
-	"u8", -- usigned-int
-	"u16", 
+	"u8", -- unsigned-int
+	"u16",
 	"u32",
 	"i8", -- signed-int
 	"i16",
@@ -33,12 +32,26 @@ Define strict data schemas for optimized serialization and type safety.
 	"f64",
 	
 	-- Roblox types
-	"buffer"
-	"vector2", -- f16
-	"vector3", -- f16
-	"cframe", -- f32 & f16
-	"color3", -- u8
+	"buffer",
+	"vector2", -- f16 x/y
+	"vector3", -- f16 x/y/z
+	"vector2int16", -- i16 x/y
+	"vector3int16", -- i16 x/y/z
+	"cframe", -- f32 position + compressed rotation (f16)
+	"color3", -- u8 r/g/b
 	"color3f16",
+	"udim",
+	"udim2",
+	"rect",
+	"ray",
+	"numberrange",
+	"colorsequence",
+	"numbersequence",
+	"brickcolor",
+	"tweeninfo",
+	"physicalproperties",
+	"font",
+	"datetime",
 	"instance",
 
 	-- other types
@@ -48,6 +61,10 @@ Define strict data schemas for optimized serialization and type safety.
 	"struct",
 }
 ```
+
+::: info
+there is no standalone `"nil"` schema type. To represent a value that can be `nil`, wrap it with `"optional"` (e.g. `Buffer.Schema.optional(Buffer.Schema.u16)`).
+:::
 
 ## Custom Datatypes
 
