@@ -292,7 +292,7 @@ if RunService:IsServer() then
 					UnreliableEvent:FireClient(player, buf, ref)
 				end
 			end
-			table.clear(player_bytes)
+			player_bytes[player] = 0
 			table.clear(queueUnreliableEvent[player])
 		end
 	end)
