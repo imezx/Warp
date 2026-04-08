@@ -95,9 +95,9 @@ do
 			value = sign * (1 + mantissa / 1024) * math.ldexp(1, exponent - 15)
 		end
 		F16_LOOKUP[raw + 1] = value
-		if raw % 8192 == 0 then
-			task.wait()
-		end
+		-- if raw % 8192 == 0 then
+		-- 	task.wait()
+		-- end
 	end
 end
 
