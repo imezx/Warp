@@ -124,7 +124,9 @@ else
 	end)
 
 	Replication.remove = function(player: Player)
-		table.remove(replication_ready, table.find(replication_ready, player))
+		local idx = table.find(replication_ready, player)
+		if not idx then return end
+		table.remove(replication_ready, idx)
 	end
 end
 

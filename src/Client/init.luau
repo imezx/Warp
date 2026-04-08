@@ -23,7 +23,7 @@ type Event = {
 
 local queueEvent: { { any } } = {}
 local queueUnreliableEvent: { { any } } = {}
-local eventListeners: { Event } = {}
+local eventListeners: { [number]: { Event } } = {}
 local eventSchemas: { [number]: Buffer.SchemaType } = {}
 
 local pendingInvokes: { [string]: thread } = {}
@@ -52,13 +52,21 @@ Client.Connect = function(remoteName: string, fn: (Player, ...any?) -> ...any?):
 	local id = Replication.get_id[remoteName]
 	if not id then
 		warn(`[Warp]: ".Connect"::"{remoteName}" does not exist, likely its not registered on the server yet.`)
-		return { Connected = false, Disconnect = function() return end } :: Connection
+		return {
+			Connected = false,
+			Disconnect = function()
+				return
+			end,
+		} :: Connection
 	end
 	local detail = {
 		i = id,
 		c = fn,
 	}
-	table.insert(eventListeners, detail)
+	if not eventListeners[id] then
+		eventListeners[id] = {}
+	end
+	table.insert(eventListeners[id], detail)
 	return {
 		Connected = true,
 		Disconnect = function(self: Connection)
@@ -66,9 +74,12 @@ Client.Connect = function(remoteName: string, fn: (Player, ...any?) -> ...any?):
 				return
 			end
 			self.Connected = false
-			local idx = table.find(eventListeners, detail)
-			if idx then
-				table.remove(eventListeners, idx)
+			local bucket = eventListeners[detail.i]
+			if bucket then
+				local idx = table.find(bucket, detail)
+				if idx then
+					table.remove(bucket, idx)
+				end
 			end
 		end,
 	} :: Connection
@@ -105,11 +116,7 @@ Client.DisconnectAll = function(remoteName: string)
 	if not id then
 		return
 	end
-	for idx = #eventListeners, 1, -1 do
-		if eventListeners[idx].i == id then
-			table.remove(eventListeners, idx)
-		end
-	end
+	eventListeners[id] = nil
 end
 
 --@remoteName string
@@ -177,35 +184,27 @@ if RunService:IsClient() then
 					continue
 				end
 				if remote == 1 then
-					if #eventListeners == 0 then
-						continue
-					end
 					local remoteName = content[1]
 					local id = content[2]
 					local args = content[3]
-					for _, connection in eventListeners do
-						if connection.i == remoteName then
-							Thread(function()
-								local results = { connection.c(table.unpack(args)) }
-								table.insert(queueEvent, {
-									1,
-									{ id, results } :: any,
-								})
-							end)
-							break
-						end
+					local connections = eventListeners[remoteName]
+					if connections and #connections > 0 then
+						Thread(function()
+							local results = { connections[1].c(table.unpack(args)) }
+							table.insert(queueEvent, {
+								1,
+								{ id, results } :: any,
+							})
+						end)
 					end
 					continue
 				end
 			end
-			if #eventListeners == 0 then
-				continue
-			end
-			for _, connection in eventListeners do
-				if connection.i ~= remote then
-					continue
+			local connections = eventListeners[remote]
+			if connections then
+				for _, connection in connections do
+					Thread(connection.c, table.unpack(content))
 				end
-				Thread(connection.c, table.unpack(content))
 			end
 		end
 	end

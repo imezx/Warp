@@ -30,7 +30,7 @@ local queueEvent: {
 local queueUnreliableEvent: {
 	[Player]: { { any } },
 } = {}
-local eventListeners: { Event } = {}
+local eventListeners: { [number]: { Event } } = {}
 local eventSchemas: { [number]: Buffer.SchemaType } = {}
 local players_ready: { Player }, player_bytes: { [Player]: number } = {}, {}
 
@@ -61,7 +61,10 @@ Server.Connect = function(remoteName: string, fn: (Player, ...any?) -> ...any?):
 		i = Identifier.get_id(remoteName),
 		c = fn,
 	}
-	table.insert(eventListeners, detail)
+	if not eventListeners[detail.i] then
+		eventListeners[detail.i] = {}
+	end
+	table.insert(eventListeners[detail.i], detail)
 	return {
 		Connected = true,
 		Disconnect = function(self: Connection)
@@ -69,9 +72,12 @@ Server.Connect = function(remoteName: string, fn: (Player, ...any?) -> ...any?):
 				return
 			end
 			self.Connected = false
-			local idx = table.find(eventListeners, detail)
-			if idx then
-				table.remove(eventListeners, idx)
+			local bucket = eventListeners[detail.i]
+			if bucket then
+				local idx = table.find(bucket, detail)
+				if idx then
+					table.remove(bucket, idx)
+				end
 			end
 		end,
 	} :: Connection
@@ -108,11 +114,7 @@ Server.DisconnectAll = function(remoteName: string)
 	if not id then
 		return
 	end
-	for idx = #eventListeners, 1, -1 do
-		if eventListeners[idx].i == id then
-			table.remove(eventListeners, idx)
-		end
-	end
+	eventListeners[id] = nil
 end
 
 --@remoteName string
@@ -149,7 +151,9 @@ end
 -- Fire an event to all players except specified ones.
 Server.FireExcept = function(remoteName: string, reliable: boolean, except: { Player }, ...: any?)
 	for _, player: Player in players_ready do
-		if table.find(except, player) then continue end
+		if table.find(except, player) then
+			continue
+		end
 		Server.Fire(remoteName, reliable, player, ...)
 	end
 end
@@ -188,7 +192,9 @@ if RunService:IsServer() then
 		end
 		if not RunService:IsStudio() then
 			local bytes: number = (player_bytes[player] or 0) + math.max(buffer.len(b), 800)
-			if bytes > 8e3 then return end
+			if bytes > 8e3 then
+				return
+			end
 			player_bytes[player] = bytes
 		end
 
@@ -214,32 +220,27 @@ if RunService:IsServer() then
 					local remoteName = content[1]
 					local id = content[2]
 					local args = content[3]
-					for _, connection in eventListeners do
-						if connection.i == remoteName then
-							Thread(function()
-								local results = { connection.c(player, table.unpack(args)) }
-								if not queueEvent[player] then
-									queueEvent[player] = {} :: any
-								end
-								table.insert(queueEvent[player], {
-									0,
-									{ id, results } :: any,
-								})
-							end)
-							break
-						end
+					local connections = eventListeners[remoteName]
+					if connections and #connections > 0 then
+						Thread(function()
+							local results = { connections[1].c(player, table.unpack(args)) }
+							if not queueEvent[player] then
+								queueEvent[player] = {} :: any
+							end
+							table.insert(queueEvent[player], {
+								0,
+								{ id, results } :: any,
+							})
+						end)
 					end
 					continue
 				end
 			end
-			if #eventListeners == 0 then
-				continue
-			end
-			for _, connection in eventListeners do
-				if connection.i ~= remote then
-					continue
+			local connections = eventListeners[remote]
+			if connections then
+				for _, connection in connections do
+					Thread(connection.c, player, table.unpack(content))
 				end
-				Thread(connection.c, player, table.unpack(content))
 			end
 		end
 	end
