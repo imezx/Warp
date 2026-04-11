@@ -40,6 +40,8 @@ local Players = game:GetService("Players")
 local Warp = require(path.to.warp).Client()
 local Schemas = require(path.to.schemas)
 
+Warp.awaitReady() -- this is optional, but recommended if facing any issues with race-condition, or remotes not registered
+
 -- Use schemas
 for eventName, schema in Schemas do
 	Warp.useSchema(eventName, schema)
