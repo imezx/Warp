@@ -5,7 +5,7 @@ For efficient data serialization and schema definition with optimized packing.
 ## Getting the Buffer Object
 
 ```lua
-local Buffer = Warp.Buffer()
+local Buffer = Warp.Buffer
 ```
 
 ## Schema System <Badge type="tip" text="v1.1" />
@@ -81,7 +81,7 @@ there is no standalone `"nil"` schema type. To represent a value that can be `ni
 ```
 
 ```luau [Example]
-local Buffer = Warp.Buffer()
+local Buffer = Warp.Buffer
 
 -- # this custom datatype must be registered on both server & client side
 Buffer.Schema.custom_datatype("u64", {}, function(w: Buffer.Writer, value: any) -- just for reference
@@ -111,7 +111,7 @@ Create a new buffer writer for serializing data.
 ```
 
 ```luau [Example]
-local Buffer = Warp.Buffer()
+local Buffer = Warp.Buffer
 local writer = Buffer.createWriter(256) -- Pre-allocate 256 bytes
 ```
 :::
@@ -128,7 +128,7 @@ Build the final buffer for transmission.
 ```
 
 ```luau [Example]
-local Buffer = Warp.Buffer()
+local Buffer = Warp.Buffer
 local writer = Buffer.createWriter()
 
 -- Write some data
@@ -153,7 +153,7 @@ Build the final buffer with instance references for transmission.
 ```
 
 ```luau [Example]
-local Buffer = Warp.Buffer()
+local Buffer = Warp.Buffer
 local writer = Buffer.createWriter()
 
 -- Write some data with instances
@@ -178,7 +178,7 @@ Reset a writer for reuse, clearing all data.
 ```
 
 ```luau [Example]
-local Buffer = Warp.Buffer()
+local Buffer = Warp.Buffer
 local writer = Buffer.createWriter()
 
 -- Use writer for first batch
