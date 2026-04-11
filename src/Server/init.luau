@@ -3,12 +3,14 @@
 --@EternityDev
 local Server = {}
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local Thread = require("./Util/Thread")
 local Buffer = require("./Util/Buffer")
 local Identifier = require("./Util/Identifier")
 local Replication = require("./Replication")
+local Xor = require("./Util/Xor")
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local Event: RemoteEvent = script.Parent:WaitForChild("Event")
 local _repl: RemoteEvent = script.Parent:WaitForChild("_repl")
 local UnreliableEvent: UnreliableRemoteEvent = script.Parent:WaitForChild("UnreliableEvent")
@@ -198,14 +200,15 @@ if RunService:IsServer() then
 			player_bytes[player] = bytes
 		end
 
-		local contents = Buffer.readEvents(b, ref, eventSchemas)
+		local decoded = handleInvokes and Xor.decodeServer(player, b) or b
+		local contents = Buffer.readEvents(decoded, ref, eventSchemas)
 		for _, content in contents do
 			local remote = content[1]
-			local content = content[2]
+			local d = content[2]
 			if handleInvokes then
 				if remote == 1 then
-					local id = content[1]
-					local results = content[2]
+					local id = d[1]
+					local results = d[2]
 					local pending = pendingInvokes[id]
 					if pending then
 						task.spawn(pending :: any, table.unpack(results))
@@ -217,9 +220,9 @@ if RunService:IsServer() then
 					if #eventListeners == 0 then
 						continue
 					end
-					local remoteName = content[1]
-					local id = content[2]
-					local args = content[3]
+					local remoteName = d[1]
+					local id = d[2]
+					local args = d[3]
 					local connections = eventListeners[remoteName]
 					if connections and #connections > 0 then
 						Thread(function()
@@ -239,7 +242,7 @@ if RunService:IsServer() then
 			local connections = eventListeners[remote]
 			if connections then
 				for _, connection in connections do
-					Thread(connection.c, player, table.unpack(content))
+					Thread(connection.c, player, table.unpack(d))
 				end
 			end
 		end
@@ -268,11 +271,12 @@ if RunService:IsServer() then
 			Buffer.writeEvents(writer, content, eventSchemas)
 			do
 				local buf, ref = Buffer.buildWithRefs(writer)
+				local encoded = Xor.encodeServer(player, buf)
 				Buffer.reset(writer)
 				if not ref or #ref == 0 then
-					Event:FireClient(player, buf)
+					Event:FireClient(player, encoded)
 				else
-					Event:FireClient(player, buf, ref)
+					Event:FireClient(player, encoded, ref)
 				end
 			end
 			player_bytes[player] = 0
@@ -324,6 +328,7 @@ if RunService:IsServer() then
 			table.clear(queueUnreliableEvent[player])
 			queueUnreliableEvent[player] = nil
 		end
+		Xor.remove(player)
 	end)
 	for _, player: Player in ipairs(Players:GetPlayers()) do
 		onAdded(player)
@@ -331,9 +336,9 @@ if RunService:IsServer() then
 end
 
 --[[
-    @class Server
-    @schema
-    define a schema for your data and use a strict packing
+ @class Server
+ @schema
+ define a schema for your data and use a strict packing
 ]]
 Server.Schema = Buffer.Schema
 

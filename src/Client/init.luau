@@ -3,10 +3,12 @@
 --@EternityDev
 local Client = {}
 
-local RunService = game:GetService("RunService")
 local Thread = require("./Util/Thread")
 local Buffer = require("./Util/Buffer")
 local Replication = require("./Replication")
+local Xor = require("./Util/Xor")
+
+local RunService = game:GetService("RunService")
 local Event: RemoteEvent = script.Parent:WaitForChild("Event")
 local UnreliableEvent: UnreliableRemoteEvent = script.Parent:WaitForChild("UnreliableEvent")
 local deltaT: number, cycle: number = 0, 1 / 61
@@ -26,6 +28,7 @@ local queueUnreliableEvent: { { any } } = {}
 local eventListeners: { [number]: { Event } } = {}
 local eventSchemas: { [number]: Buffer.SchemaType } = {}
 
+local lastDelta: { [number]: { any } } = {}
 local pendingInvokes: { [string]: thread } = {}
 local invokeId = 0
 
@@ -165,13 +168,12 @@ end
 
 if RunService:IsClient() then
 	local function processIncoming(b: buffer, ref: { Instance }?, handleInvokes: boolean)
-		if type(b) ~= "buffer" then
-			return
-		end
-		local contents = Buffer.readEvents(b, ref, eventSchemas)
+		if type(b) ~= "buffer" then return end
+		local decoded: buffer = handleInvokes and Xor.decodeClient(b) or b
+		local contents = Buffer.readEvents(decoded, ref, eventSchemas)
 		for _, content in contents do
 			local remote = content[1]
-			local content = content[2]
+			local args = content[2]
 			if handleInvokes then
 				if remote == 0 then
 					local id = content[1]
@@ -184,17 +186,12 @@ if RunService:IsClient() then
 					continue
 				end
 				if remote == 1 then
-					local remoteName = content[1]
-					local id = content[2]
-					local args = content[3]
+					local remoteName, id, rargs = args[1], args[2], args[3]
 					local connections = eventListeners[remoteName]
 					if connections and #connections > 0 then
 						Thread(function()
-							local results = { connections[1].c(table.unpack(args)) }
-							table.insert(queueEvent, {
-								1,
-								{ id, results } :: any,
-							})
+							local results = { connections[1].c(table.unpack(rargs)) }
+							table.insert(queueEvent, { 1, { id, results } :: any })
 						end)
 					end
 					continue
@@ -203,7 +200,7 @@ if RunService:IsClient() then
 			local connections = eventListeners[remote]
 			if connections then
 				for _, connection in connections do
-					Thread(connection.c, table.unpack(content))
+					Thread(connection.c, table.unpack(args))
 				end
 			end
 		end
@@ -219,21 +216,20 @@ if RunService:IsClient() then
 
 	RunService.PostSimulation:Connect(function(d: number)
 		deltaT += d
-		if deltaT < cycle then
-			return
-		end
+		if deltaT < cycle then return end
 		deltaT = 0
-
-		-- reliable
+		
+		--reliable
 		if #queueEvent > 0 then
 			Buffer.writeEvents(writer, queueEvent, eventSchemas)
 			do
 				local buf, ref = Buffer.buildWithRefs(writer)
+				local encoded = Xor.encodeClient(buf)
 				Buffer.reset(writer)
 				if not ref or #ref == 0 then
-					Event:FireServer(buf)
+					Event:FireServer(encoded)
 				else
-					Event:FireServer(buf, ref)
+					Event:FireServer(encoded, ref)
 				end
 			end
 			table.clear(queueEvent)
