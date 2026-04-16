@@ -10,17 +10,27 @@ local clientPrev: { [Player]: XorEntry } = {}
 
 local clientOutPrev: XorEntry? = nil
 local clientInPrev: XorEntry? = nil
+const MAX_BUFFER_SIZE: number = 1024
 
-local function xorApply(current: buffer, curLen: number, prev: buffer, prevLen: number): buffer
+local function xorApply(
+	current: buffer, curLen: number,
+	prev: buffer, prevLen: number
+): buffer
 	local out = buffer.create(curLen)
 	local common = if curLen < prevLen then curLen else prevLen
 
 	local wordEnd = (common // 4) * 4
 	for off = 0, wordEnd - 4, 4 do
-		buffer.writeu32(out, off, bit32.bxor(buffer.readu32(current, off), buffer.readu32(prev, off)))
+		buffer.writeu32(
+			out, off,
+			bit32.bxor(buffer.readu32(current, off), buffer.readu32(prev, off))
+		)
 	end
 	for i = wordEnd, common - 1 do
-		buffer.writeu8(out, i, bit32.bxor(buffer.readu8(current, i), buffer.readu8(prev, i)))
+		buffer.writeu8(
+			out, i,
+			bit32.bxor(buffer.readu8(current, i), buffer.readu8(prev, i))
+		)
 	end
 
 	if curLen > common then
@@ -30,10 +40,13 @@ local function xorApply(current: buffer, curLen: number, prev: buffer, prevLen: 
 end
 
 local function storeEntry(entry: XorEntry?, src: buffer, len: number): XorEntry
-	local e: XorEntry = entry or { buf = buffer.create(len > 64 and len or 64), len = 0 }
+	local e: XorEntry = entry or { buf = buffer.create(math.max(len, 64)), len = 0 }
+	local cap = buffer.len(e.buf)
 
-	if buffer.len(e.buf) < len then
-		e.buf = buffer.create(len * 2)
+	if cap < len then
+		e.buf = buffer.create(math.min(len * 2, MAX_BUFFER_SIZE + len))
+	elseif cap > len * 4 and cap > 128 then
+		e.buf = buffer.create(math.max(len, 64))
 	end
 
 	buffer.copy(e.buf, 0, src, 0, len)
