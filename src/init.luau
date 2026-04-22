@@ -12,9 +12,6 @@ if game.RunService:IsServer() then
 	if not script:FindFirstChild("UnreliableEvent") then
 		Instance.new("UnreliableRemoteEvent", script).Name = "UnreliableEvent"
 	end
-	if not script:FindFirstChild("Function") then
-		Instance.new("RemoteFunction", script).Name = "Function"
-	end
 end
 
 local Client = require("@self/Client")

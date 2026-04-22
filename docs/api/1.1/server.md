@@ -20,7 +20,7 @@ this is optional and conditional, you may have to use this if you had a problem 
 ```luau [Variable]
 (
 	namespaces: { string },
-) -> Connection
+)
 ```
 
 ```luau [Example]
