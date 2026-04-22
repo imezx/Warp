@@ -9,8 +9,8 @@ local Replication = require("./Replication")
 local Xor = require("./Util/Xor")
 
 local RunService = game:GetService("RunService")
-local Event: RemoteEvent = script.Parent:WaitForChild("Event")
-local UnreliableEvent: UnreliableRemoteEvent = script.Parent:WaitForChild("UnreliableEvent")
+local Event: RemoteEvent = script.Parent:WaitForChild("Event") :: RemoteEvent
+local UnreliableEvent: UnreliableRemoteEvent = script.Parent:WaitForChild("UnreliableEvent") :: UnreliableRemoteEvent
 local deltaT: number, cycle: number = 0, 1 / 61
 local writer: Buffer.Writer = Buffer.createWriter()
 
@@ -200,7 +200,7 @@ if RunService:IsClient() then
 			local connections = eventListeners[remote]
 			if connections then
 				for _, connection in connections do
-					Thread(connection.c, table.unpack(args))
+					Thread(connection.c :: any, table.unpack(args))
 				end
 			end
 		end
