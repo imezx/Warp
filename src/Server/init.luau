@@ -182,7 +182,7 @@ Server.Invoke = function(remoteName: string, player: Player, timeout: number?, .
 	end
 	table.insert(queueEvent[player], {
 		0,
-		{ Identifier.get_id(remoteName), reqId :: any, { ... } :: any } :: any,
+		{ reqId :: any, { ... } :: any } :: any,
 	})
 	return coroutine.yield()
 end
