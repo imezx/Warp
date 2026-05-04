@@ -14,7 +14,7 @@ local warp_identifier_registry = shared.__warp_identifier_registry
 if RunService:IsClient() or RunService:IsRunMode() then
 	local pending_id_yields, pending_name_yields, ready_yields = {}, {}, {}
 	local is_ready = false
-	
+
 	if RunService:IsClient() then
 		_repl.OnClientEvent:Connect(function(b: buffer)
 			if type(b) ~= "buffer" then
@@ -26,7 +26,7 @@ if RunService:IsClient() or RunService:IsRunMode() then
 				local id: number, remote: string = content[1], content[2]
 				warp_identifier_registry.cache[remote] = id
 				warp_identifier_registry.name[id] = remote
-				
+
 				if pending_id_yields[remote] then
 					for _, thread in pending_id_yields[remote] do
 						task.spawn(thread, id)
@@ -55,7 +55,6 @@ if RunService:IsClient() or RunService:IsRunMode() then
 	-- wait for the identifiers to be replicated from the server
 	Replication.wait_for_ready = function()
 		if is_ready then return end
-
 		local thread = coroutine.running()
 		table.insert(ready_yields, thread)
 		coroutine.yield()

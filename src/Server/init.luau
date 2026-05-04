@@ -11,9 +11,9 @@ local Xor = require("./Util/Xor")
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local Event: RemoteEvent = script.Parent:WaitForChild("Event")
-local _repl: RemoteEvent = script.Parent:WaitForChild("_repl")
-local UnreliableEvent: UnreliableRemoteEvent = script.Parent:WaitForChild("UnreliableEvent")
+local Event: RemoteEvent = script.Parent:WaitForChild("Event") :: RemoteEvent
+local _repl: RemoteEvent = script.Parent:WaitForChild("_repl") :: RemoteEvent
+local UnreliableEvent: UnreliableRemoteEvent = script.Parent:WaitForChild("UnreliableEvent") :: UnreliableRemoteEvent
 local deltaT: number, cycle: number = 0, 1 / 61
 local writer: Buffer.Writer = Buffer.createWriter()
 
@@ -182,7 +182,7 @@ Server.Invoke = function(remoteName: string, player: Player, timeout: number?, .
 	end
 	table.insert(queueEvent[player], {
 		0,
-		{ Identifier.get_id(remoteName), reqId :: any, { ... } :: any } :: any,
+		{ reqId :: any, { ... } :: any } :: any,
 	})
 	return coroutine.yield()
 end
@@ -217,7 +217,7 @@ if RunService:IsServer() then
 					continue
 				end
 				if remote == 0 then
-					if #eventListeners == 0 then
+					if not next(eventListeners) then
 						continue
 					end
 					local remoteName = d[1]
@@ -242,7 +242,7 @@ if RunService:IsServer() then
 			local connections = eventListeners[remote]
 			if connections then
 				for _, connection in connections do
-					Thread(connection.c, player, table.unpack(d))
+					Thread(connection.c :: any, player, table.unpack(d))
 				end
 			end
 		end
