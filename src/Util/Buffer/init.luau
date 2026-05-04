@@ -50,7 +50,11 @@ local T_BUFFER = 0xDC
 local T_BOOL_ARR = 0xDD
 
 local T_VEC3 = 0xE0
+local T_VEC3F32 = 0xE1
+local T_VEC3I16 = 0xF1
 local T_VEC2 = 0xE2
+local T_VEC2F32 = 0xE3
+local T_VEC2I16 = 0xF4
 local T_CFRAME = 0xE4
 local T_COLOR3 = 0xE6
 local T_COLOR3_F = 0xE7
@@ -65,8 +69,6 @@ local T_NUMBERRANGE = 0xEF
 local T_RAY = 0xF0
 local T_COLSEQ = 0xF2
 local T_NUMSEQ = 0xF3
-local T_VEC3I16 = 0xF1
-local T_VEC2I16 = 0xF4
 local T_TWEENINFO = 0xF5
 local T_PHYSPROP = 0xF6
 local T_FONT = 0xF7
@@ -732,11 +734,26 @@ local function packVector3(w: Writer, v: Vector3)
 	rawF16(w, v.Z)
 end
 
+local function packVector3F32(w: Writer, v: Vector3)
+	ensureSpace(w, 13)
+	rawU8(w, T_VEC3F32)
+	rawF32(w, v.X)
+	rawF32(w, v.Y)
+	rawF32(w, v.Z)
+end
+
 local function packVector2(w: Writer, v: Vector2)
 	ensureSpace(w, 5)
 	rawU8(w, T_VEC2)
 	rawF16(w, v.X)
 	rawF16(w, v.Y)
+end
+
+local function packVector2F32(w: Writer, v: Vector2)
+	ensureSpace(w, 9)
+	rawU8(w, T_VEC2F32)
+	rawF32(w, v.X)
+	rawF32(w, v.Y)
 end
 
 local function packCFrame(w: Writer, cf: CFrame)
@@ -796,8 +813,31 @@ PACK_DISPATCH["Vector3"] = function(w: Writer, v: any)
 	packVector3(w, v)
 end
 
+PACK_DISPATCH["Vector3F32"] = function(w: Writer, v: any)
+	packVector3F32(w, v)
+end
+
+PACK_DISPATCH["Vector3int16"] = function(w: Writer, v: any)
+	ensureSpace(w, 7)
+	rawU8(w, T_VEC3I16)
+	rawI16(w, v.X)
+	rawI16(w, v.Y)
+	rawI16(w, v.Z)
+end
+
 PACK_DISPATCH["Vector2"] = function(w: Writer, v: any)
 	packVector2(w, v)
+end
+
+PACK_DISPATCH["Vector2F32"] = function(w: Writer, v: any)
+	packVector2F32(w, v)
+end
+
+PACK_DISPATCH["Vector2int16"] = function(w: Writer, v: any)
+	ensureSpace(w, 5)
+	rawU8(w, T_VEC2I16)
+	rawI16(w, v.X)
+	rawI16(w, v.Y)
 end
 
 PACK_DISPATCH["CFrame"] = function(w: Writer, v: any)
@@ -922,21 +962,6 @@ PACK_DISPATCH["buffer"] = function(w: Writer, v: any)
 	rawVarUInt(w, len)
 	buffer.copy(w.buf, w.cursor, v, 0, len)
 	w.cursor += len
-end
-
-PACK_DISPATCH["Vector3int16"] = function(w: Writer, v: any)
-	ensureSpace(w, 7)
-	rawU8(w, T_VEC3I16)
-	rawI16(w, v.X)
-	rawI16(w, v.Y)
-	rawI16(w, v.Z)
-end
-
-PACK_DISPATCH["Vector2int16"] = function(w: Writer, v: any)
-	ensureSpace(w, 5)
-	rawU8(w, T_VEC2I16)
-	rawI16(w, v.X)
-	rawI16(w, v.Y)
 end
 
 PACK_DISPATCH["TweenInfo"] = function(w: Writer, v: any)
@@ -1064,15 +1089,6 @@ end
 
 UNPACK[T_F64 + 1] = function(buf: buffer, pos: number, _: { any }?, _: number): (any, number)
 	return buffer.readf64(buf, pos), pos + 8
-end
-
-UNPACK[T_VEC3I16 + 1] = function(buf: buffer, pos: number, _: { any }?, _: number): (any, number)
-	return Vector3int16.new(buffer.readi16(buf, pos), buffer.readi16(buf, pos + 2), buffer.readi16(buf, pos + 4)),
-		pos + 6
-end
-
-UNPACK[T_VEC2I16 + 1] = function(buf: buffer, pos: number, _: { any }?, _: number): (any, number)
-	return Vector2int16.new(buffer.readi16(buf, pos), buffer.readi16(buf, pos + 2)), pos + 4
 end
 
 UNPACK[T_TWEENINFO + 1] = function(buf: buffer, pos: number, _: { any }?, _: number): (any, number)
@@ -1288,11 +1304,37 @@ UNPACK[T_VEC3 + 1] = function(buf: buffer, pos: number, _: { any }?, _: number):
 	return Vector3.new(x, y, z), pos + 6
 end
 
+-- Vector3 float32
+UNPACK[T_VEC3F32 + 1] = function(buf: buffer, pos: number, _: { any }?, _: number): (any, number)
+	local x = buffer.readf32(buf, pos)
+	local y = buffer.readf32(buf, pos + 4)
+	local z = buffer.readf32(buf, pos + 8)
+	return Vector3.new(x, y, z), pos + 12
+end
+
+-- Vector3int16
+UNPACK[T_VEC3I16 + 1] = function(buf: buffer, pos: number, _: { any }?, _: number): (any, number)
+	return Vector3int16.new(buffer.readi16(buf, pos), buffer.readi16(buf, pos + 2), buffer.readi16(buf, pos + 4)),
+		pos + 6
+end
+
 -- Vector2
 UNPACK[T_VEC2 + 1] = function(buf: buffer, pos: number, _: { any }?, _: number): (any, number)
 	local x = readF16(buf, pos)
 	local y = readF16(buf, pos + 2)
 	return Vector2.new(x, y), pos + 4
+end
+
+-- Vector2 float32
+UNPACK[T_VEC2F32 + 1] = function(buf: buffer, pos: number, _: { any }?, _: number): (any, number)
+	local x = buffer.readf32(buf, pos)
+	local y = buffer.readf32(buf, pos + 4)
+	return Vector2.new(x, y), pos + 8
+end
+
+-- Vector2int16
+UNPACK[T_VEC2I16 + 1] = function(buf: buffer, pos: number, _: { any }?, _: number): (any, number)
+	return Vector2int16.new(buffer.readi16(buf, pos), buffer.readi16(buf, pos + 2)), pos + 4
 end
 
 -- CFrame
@@ -1469,7 +1511,11 @@ Schema.f32 = { type = "f32" }
 Schema.f64 = { type = "f64" }
 Schema.boolean = { type = "boolean" }
 Schema.vector3 = { type = "vector3" }
+Schema.vector3f32 = { type = "vector3f32" }
+Schema.vector3int16 = { type = "vector3int16" }
 Schema.vector2 = { type = "vector2" }
+Schema.vector2f32 = { type = "vector2f32" }
+Schema.vector2int16 = { type = "vector2int16" }
 Schema.cframe = { type = "cframe" }
 Schema.color3 = { type = "color3" }
 Schema.color3f16 = { type = "color3f16" }
@@ -1484,8 +1530,6 @@ Schema.colorsequence = { type = "colorsequence" }
 Schema.numbersequence = { type = "numbersequence" }
 Schema.brickcolor = { type = "brickcolor" }
 Schema.buffer = { type = "buffer" }
-Schema.vector3int16 = { type = "vector3int16" }
-Schema.vector2int16 = { type = "vector2int16" }
 Schema.tweeninfo = { type = "tweeninfo" }
 Schema.physicalproperties = { type = "physicalproperties" }
 Schema.font = { type = "font" }
@@ -1544,7 +1588,11 @@ local SCHEMA_FIXED_SIZES: { [string]: number } = {
 	f64 = 8,
 	boolean = 1,
 	vector3 = 6,
+	vector3f32 = 12,
+	vector3int16 = 6,
 	vector2 = 4,
+	vector2f32 = 8,
+	vector2int16 = 4,
 	cframe = 19,
 	color3 = 3,
 	color3f16 = 6,
@@ -1554,8 +1602,6 @@ local SCHEMA_FIXED_SIZES: { [string]: number } = {
 	numberrange = 8,
 	ray = 24,
 	brickcolor = 2,
-	vector3int16 = 6,
-	vector2int16 = 4,
 	tweeninfo = 15,
 	physicalproperties = 20,
 	datetime = 8,
@@ -1637,7 +1683,6 @@ local function compilePacker(s: SchemaType): (Writer, any) -> ()
 			rawString(w, v, len)
 		end
 	end
-
 	if schema_type == "vector3" then
 		return function(w: Writer, v: any)
 			ensureSpace(w, 6)
@@ -1646,11 +1691,26 @@ local function compilePacker(s: SchemaType): (Writer, any) -> ()
 			rawF16(w, v.Z)
 		end
 	end
+	if schema_type == "vector3f32" then
+		return function(w: Writer, v: any)
+			ensureSpace(w, 12)
+			rawF32(w, v.X)
+			rawF32(w, v.Y)
+			rawF32(w, v.Z)
+		end
+	end
 	if schema_type == "vector2" then
 		return function(w: Writer, v: any)
 			ensureSpace(w, 4)
 			rawF16(w, v.X)
 			rawF16(w, v.Y)
+		end
+	end
+	if schema_type == "vector2f32" then
+		return function(w: Writer, v: any)
+			ensureSpace(w, 8)
+			rawF32(w, v.X)
+			rawF32(w, v.Y)
 		end
 	end
 
@@ -2084,11 +2144,26 @@ local function compileReader(s: SchemaType): (buffer, number, { any }?) -> (any,
 			return Vector3.new(x, y, z), c + 6
 		end
 	end
+	if schema_type == "vector3f32" then
+		return function(b: buffer, c: number)
+			local x = buffer.readf32(b, c)
+			local y = buffer.readf32(b, c + 4)
+			local z = buffer.readf32(b, c + 8)
+			return Vector3.new(x, y, z), c + 12
+		end
+	end
 	if schema_type == "vector2" then
 		return function(b: buffer, c: number)
 			local x = readF16(b, c)
 			local y = readF16(b, c + 2)
 			return Vector2.new(x, y), c + 4
+		end
+	end
+	if schema_type == "vector2f32" then
+		return function(b: buffer, c: number)
+			local x = buffer.readf32(b, c)
+			local y = buffer.readf32(b, c + 4)
+			return Vector2.new(x, y), c + 8
 		end
 	end
 	if schema_type == "color3" then

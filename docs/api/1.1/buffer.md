@@ -35,6 +35,8 @@ Define strict data schemas for optimized serialization and type safety.
 	"buffer",
 	"vector2", -- f16 x/y
 	"vector3", -- f16 x/y/z
+	"vector2f32", -- f32 x/y
+	"vector3f32", -- f32 x/y/z
 	"vector2int16", -- i16 x/y
 	"vector3int16", -- i16 x/y/z
 	"cframe", -- f32 position + compressed rotation (f16)
