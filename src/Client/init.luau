@@ -51,7 +51,7 @@ end
 --@remoteName string
 --@fn function
 -- Connect to an event to receive incoming data from the server.
-Client.Connect = function(remoteName: string, fn: (Player, ...any?) -> ...any?): Connection
+Client.Connect = function(remoteName: string, fn: (...any?) -> ...any?): Connection
 	local id = Replication.get_id[remoteName]
 	if not id then
 		warn(`[Warp]: ".Connect"::"{remoteName}" does not exist, likely its not registered on the server yet.`)
