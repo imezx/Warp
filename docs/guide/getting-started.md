@@ -12,6 +12,11 @@ Then, you should do `.Server` or `.Client`
 ```lua
 local Server = Warp.Server() --> for Server-side only
 local Client = Warp.Client() --> for Client-side only
+
+--..or..--
+
+local Server = Warp.Server
+local Client = Warp.Client
 ```
 
 ### `Basic Usage`
