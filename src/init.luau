@@ -1,8 +1,9 @@
 --!strict
 --@EternityDev
+
 local Remote = {}
 
-if game.RunService:IsServer() then
+if game:GetService("RunService"):IsServer() then
 	if not script:FindFirstChild("_repl") then
 		Instance.new("RemoteEvent", script).Name = "_repl"
 	end
@@ -21,18 +22,24 @@ local Buffer = require("@self/Util/Buffer")
 --[[
 	@class Remote
 	@client
+	client library of `Warp`, use it only on client
 ]]
-Remote.Client = function()
-	return Client
-end
+Remote.Client = setmetatable(Client, {
+	__call = function()
+		return Client
+	end,
+})
 
 --[[
 	@class Remote
 	@server
+	server library of `Warp`, use it only on server
 ]]
-Remote.Server = function()
-	return Server
-end
+Remote.Server = setmetatable(Server, {
+	__call = function()
+		return Server
+	end,
+})
 
 --[[
 	@class Remote
@@ -41,4 +48,13 @@ end
 ]]
 Remote.Buffer = Buffer
 
-return Remote :: typeof(Remote)
+-- making a strict table from `Warp` (Remote) - catching early errors and preventing changes/replacements of keys in the table
+return setmetatable(Remote, {
+	__index = function(_self: any, key: any): never
+		error(`{key} is not valid member of Warp.\nPlease check documentation here: https://imezx.github.io/Warp/`)
+	end,
+
+	__newindex = function(_self: any, key: any, _value: any): never
+		error(`{key} is not valid member of Warp.\nPlease check documentation here: https://imezx.github.io/Warp/`)
+	end,
+}) :: typeof(Remote) -- saving the typing
