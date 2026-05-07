@@ -6,6 +6,8 @@ For Server-sided operations.
 
 ```lua
 local Server = Warp.Server()
+--..or..--
+local Server = Warp.Server
 ```
 
 ## `.reg_namespaces`
