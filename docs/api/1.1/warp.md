@@ -11,7 +11,7 @@ Get the Server operation for server-side.
 
 ```lua
 -- Server
-local Server = Warp.Server()
+local Server = Warp.Server
 ```
 
 ## `.Client` <Badge type="tip" text="client side" />
@@ -20,7 +20,7 @@ Get the Client operation for client-side.
 
 ```lua
 -- Client
-local Client = Warp.Client()
+local Client = Warp.Client
 ```
 
 ## `.Buffer` <Badge type="tip" text="universal" />
