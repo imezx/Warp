@@ -6,6 +6,8 @@ For Client-sided operations.
 
 ```lua
 local Client = Warp.Client()
+--..or..--
+local Client = Warp.Client
 ```
 
 ## `.awaitReady` <Badge type="warning" text="yield" />
