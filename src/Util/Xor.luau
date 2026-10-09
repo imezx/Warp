@@ -3,118 +3,72 @@
 --!optimize 2
 local Xor = {}
 
-type XorEntry = { buf: buffer, len: number }
+const KEYFRAME, DELTA, HEADER = 0, 1, 2
+const KEYFRAME_INTERVAL = 1 -- bounds how long a desynced stream stays broken
 
-local serverPrev: { [Player]: XorEntry } = {}
-local clientPrev: { [Player]: XorEntry } = {}
+export type Stream = { prev: buffer?, seq: number, lastKey: number }
 
-local clientOutPrev: XorEntry? = nil
-local clientInPrev: XorEntry? = nil
-const MAX_BUFFER_SIZE: number = 1024
-
-local function xorApply(
-	current: buffer, curLen: number,
-	prev: buffer, prevLen: number
-): buffer
-	local out = buffer.create(curLen)
-	local common = if curLen < prevLen then curLen else prevLen
-
-	local wordEnd = (common // 4) * 4
-	for off = 0, wordEnd - 4, 4 do
-		buffer.writeu32(
-			out, off,
-			bit32.bxor(buffer.readu32(current, off), buffer.readu32(prev, off))
-		)
+local function xorApply(out: buffer, outOff: number, cur: buffer, curOff: number, len: number, prev: buffer)
+	local common = math.min(len, buffer.len(prev))
+	local i = 0
+	while i + 4 <= common do
+		buffer.writeu32(out, outOff + i, bit32.bxor(buffer.readu32(cur, curOff + i), buffer.readu32(prev, i)))
+		i += 4
 	end
-	for i = wordEnd, common - 1 do
-		buffer.writeu8(
-			out, i,
-			bit32.bxor(buffer.readu8(current, i), buffer.readu8(prev, i))
-		)
+	while i < common do
+		buffer.writeu8(out, outOff + i, bit32.bxor(buffer.readu8(cur, curOff + i), buffer.readu8(prev, i)))
+		i += 1
 	end
+	if len > common then
+		buffer.copy(out, outOff + common, cur, curOff + common, len - common)
+	end
+end
 
-	if curLen > common then
-		buffer.copy(out, common, current, common, curLen - common)
+function Xor.new(): Stream
+	return { prev = nil, seq = 0, lastKey = 0 }
+end
+
+function Xor.encode(s: Stream, buf: buffer): buffer
+	local len = buffer.len(buf)
+	local prev = s.prev
+	local now = os.clock()
+	local out = buffer.create(len + HEADER)
+	s.seq = (s.seq + 1) % 256
+	buffer.writeu8(out, 1, s.seq)
+	if prev == nil or now - s.lastKey >= KEYFRAME_INTERVAL then
+		buffer.writeu8(out, 0, KEYFRAME)
+		buffer.copy(out, HEADER, buf, 0, len)
+		s.lastKey = now
+	else
+		buffer.writeu8(out, 0, DELTA)
+		xorApply(out, HEADER, buf, 0, len, prev)
 	end
+	local copy = buffer.create(len)
+	buffer.copy(copy, 0, buf, 0, len)
+	s.prev = copy
 	return out
 end
 
-local function storeEntry(entry: XorEntry?, src: buffer, len: number): XorEntry
-	local e: XorEntry = entry or { buf = buffer.create(math.max(len, 64)), len = 0 }
-	local cap = buffer.len(e.buf)
-
-	if cap < len then
-		e.buf = buffer.create(math.min(len * 2, MAX_BUFFER_SIZE + len))
-	elseif cap > len * 4 and cap > 128 then
-		e.buf = buffer.create(math.max(len, 64))
+function Xor.decode(s: Stream, pkt: buffer): buffer?
+	local len = buffer.len(pkt) - HEADER
+	if len < 0 then
+		s.prev = nil
+		return nil
 	end
-
-	buffer.copy(e.buf, 0, src, 0, len)
-	e.len = len
-	return e
-end
-
-function Xor.remove(player: Player)
-	serverPrev[player] = nil
-	clientPrev[player] = nil
-end
-
-function Xor.encodeServer(player: Player, buf: buffer): buffer
-	local len = buffer.len(buf)
-	local entry = serverPrev[player]
-
-	if not entry then
-		serverPrev[player] = storeEntry(nil, buf, len)
-		return buf
+	local kind, seq = buffer.readu8(pkt, 0), buffer.readu8(pkt, 1)
+	local prev = s.prev
+	local out = buffer.create(len)
+	if kind == KEYFRAME then
+		buffer.copy(out, 0, pkt, HEADER, len)
+	elseif kind == DELTA and prev and seq == (s.seq + 1) % 256 then
+		xorApply(out, 0, pkt, HEADER, len, prev)
+	else
+		s.prev = nil
+		return nil
 	end
-
-	local encoded = xorApply(buf, len, entry.buf, entry.len)
-	serverPrev[player] = storeEntry(entry, buf, len)
-	return encoded
+	s.seq = seq
+	s.prev = out
+	return out
 end
-
-function Xor.decodeClient(buf: buffer): buffer
-	local len = buffer.len(buf)
-	local prev = clientInPrev
-
-	if not prev then
-		clientInPrev = storeEntry(nil, buf, len)
-		return buf
-	end
-
-	local recovered = xorApply(buf, len, prev.buf, prev.len)
-	clientInPrev = storeEntry(prev, recovered, len)
-	return recovered
-end
-
-function Xor.encodeClient(buf: buffer): buffer
-	local len = buffer.len(buf)
-	local prev = clientOutPrev
-
-	if not prev then
-		clientOutPrev = storeEntry(nil, buf, len)
-		return buf
-	end
-
-	local encoded = xorApply(buf, len, prev.buf, prev.len)
-	clientOutPrev = storeEntry(prev, buf, len)
-	return encoded
-end
-
-function Xor.decodeServer(player: Player, buf: buffer): buffer
-	local len = buffer.len(buf)
-	local entry = clientPrev[player]
-
-	if not entry then
-		clientPrev[player] = storeEntry(nil, buf, len)
-		return buf
-	end
-
-	local recovered = xorApply(buf, len, entry.buf, entry.len)
-	clientPrev[player] = storeEntry(entry, recovered, len)
-	return recovered
-end
-
-Xor._apply = xorApply
 
 return Xor
